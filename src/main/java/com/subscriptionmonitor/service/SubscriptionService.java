@@ -1,6 +1,7 @@
 package com.subscriptionmonitor.service;
 
 import com.subscriptionmonitor.model.entity.Subscription;
+import com.subscriptionmonitor.model.entity.Payment;
 import com.subscriptionmonitor.model.enums.Currency;
 import com.subscriptionmonitor.storage.DataStorage;
 
@@ -9,13 +10,16 @@ import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class SubscriptionService implements CrudService<Subscription, Long> {
     private final DataStorage storage;
+    private final PaymentService paymentService;
 
     public SubscriptionService() {
         this.storage = DataStorage.getInstance();
+        this.paymentService = new PaymentService();
     }
 
     @Override
@@ -161,6 +165,7 @@ public class SubscriptionService implements CrudService<Subscription, Long> {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+
     public int getTotalCount() {
         return storage.getTotalSubscriptionsCount();
     }
@@ -181,5 +186,42 @@ public class SubscriptionService implements CrudService<Subscription, Long> {
         if (subscription.getBillingPeriodDays() == null || subscription.getBillingPeriodDays() <= 0) {
             throw new IllegalArgumentException("Billing period must be positive");
         }
+    }
+
+    public Optional<Subscription> findByUuid(UUID uuid) {
+        if (uuid == null) {
+            return Optional.empty();
+        }
+
+        return storage.getSubscriptions().values().stream()
+                .filter(subscription -> uuid.equals(subscription.getUuid()))
+                .findFirst();
+    }
+
+    public boolean deleteByUuid(UUID uuid) {
+        Optional<Subscription> subscription = findByUuid(uuid);
+        if (subscription.isPresent()) {
+            storage.getSubscriptions().remove(subscription.get().getId());
+            return true;
+        }
+        return false;
+    }
+
+    public boolean activateSubscription(UUID uuid) {
+        Optional<Subscription> subscription = findByUuid(uuid);
+        if (subscription.isPresent()) {
+            subscription.get().setIsActive(true);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean deactivateSubscription(UUID uuid) {
+        Optional<Subscription> subscription = findByUuid(uuid);
+        if (subscription.isPresent()) {
+            subscription.get().setIsActive(false);
+            return true;
+        }
+        return false;
     }
 }

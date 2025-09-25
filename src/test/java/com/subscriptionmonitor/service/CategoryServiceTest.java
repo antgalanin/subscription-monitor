@@ -1,6 +1,7 @@
 package com.subscriptionmonitor.service;
 
 import com.subscriptionmonitor.model.entity.Category;
+import com.subscriptionmonitor.model.enums.CategoryType;
 import com.subscriptionmonitor.storage.DataStorage;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -29,14 +30,15 @@ class CategoryServiceTest {
     @Test
     @DisplayName("Создание категории с корректными данными")
     void testCreateCategory_Success() {
-        Category category = new Category("Развлечения", true, 1L);
+        Category category = new Category("Развлечения", CategoryType.SYSTEM, 1L);
 
         Category created = categoryService.create(category);
 
         assertNotNull(created);
         assertNotNull(created.getId());
+        assertNotNull(created.getUuid());
         assertEquals("Развлечения", created.getName());
-        assertTrue(created.getIsDefault());
+        assertEquals(CategoryType.SYSTEM, created.getType());
         assertEquals(1L, created.getCreatedByUserId());
         assertEquals(1, categoryService.getTotalCount());
     }
@@ -54,7 +56,7 @@ class CategoryServiceTest {
     @Test
     @DisplayName("Создание категории с пустым именем")
     void testCreateCategory_EmptyName() {
-        Category category = new Category("", true, 1L);
+        Category category = new Category("", CategoryType.SYSTEM, 1L);
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
                 () -> categoryService.create(category));
@@ -66,7 +68,7 @@ class CategoryServiceTest {
     @Test
     @DisplayName("Создание категории с null именем")
     void testCreateCategory_NullName() {
-        Category category = new Category(null, true, 1L);
+        Category category = new Category(null, CategoryType.SYSTEM, 1L);
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
                 () -> categoryService.create(category));
@@ -78,7 +80,7 @@ class CategoryServiceTest {
     @Test
     @DisplayName("Поиск категории по ID")
     void testFindById_Success() {
-        Category category = new Category("Образование", false, 2L);
+        Category category = new Category("Образование", CategoryType.CUSTOM, 2L);
         Category created = categoryService.create(category);
 
         Optional<Category> found = categoryService.findById(created.getId());
@@ -99,8 +101,8 @@ class CategoryServiceTest {
     @Test
     @DisplayName("Получение всех категорий")
     void testFindAll() {
-        Category category1 = new Category("Развлечения", true, 1L);
-        Category category2 = new Category("Образование", false, 2L);
+        Category category1 = new Category("Развлечения", CategoryType.SYSTEM, 1L);
+        Category category2 = new Category("Образование", CategoryType.CUSTOM, 2L);
 
         categoryService.create(category1);
         categoryService.create(category2);
@@ -115,23 +117,23 @@ class CategoryServiceTest {
     @Test
     @DisplayName("Обновление категории")
     void testUpdateCategory_Success() {
-        Category category = new Category("Развлечения", true, 1L);
+        Category category = new Category("Развлечения", CategoryType.SYSTEM, 1L);
         Category created = categoryService.create(category);
 
         created.setName("Развлечения и игры");
-        created.setIsDefault(false);
+        created.setType(CategoryType.CUSTOM);
 
         Category updated = categoryService.update(created);
 
         assertEquals("Развлечения и игры", updated.getName());
-        assertFalse(updated.getIsDefault());
+        assertEquals(CategoryType.CUSTOM, updated.getType());
         assertEquals(created.getId(), updated.getId());
     }
 
     @Test
     @DisplayName("Обновление несуществующей категории")
     void testUpdateCategory_NotFound() {
-        Category category = new Category("Тест", true, 1L);
+        Category category = new Category("Тест", CategoryType.SYSTEM, 1L);
         category.setId(999L);
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
@@ -143,7 +145,7 @@ class CategoryServiceTest {
     @Test
     @DisplayName("Удаление категории")
     void testDeleteCategory_Success() {
-        Category category = new Category("Образование", false, 2L);
+        Category category = new Category("Образование", CategoryType.CUSTOM, 2L);
         Category created = categoryService.create(category);
 
         boolean deleted = categoryService.deleteById(created.getId());
@@ -164,10 +166,10 @@ class CategoryServiceTest {
     @Test
     @DisplayName("Получение системных категорий")
     void testGetDefaultCategories() {
-        Category default1 = new Category("Развлечения", true, 1L);
-        Category default2 = new Category("Образование", true, 1L);
-        Category user1 = new Category("Личное", false, 2L);
-        Category user2 = new Category("Работа", false, 3L);
+        Category default1 = new Category("Развлечения", CategoryType.SYSTEM, 1L);
+        Category default2 = new Category("Образование", CategoryType.SYSTEM, 1L);
+        Category user1 = new Category("Личное", CategoryType.CUSTOM, 2L);
+        Category user2 = new Category("Работа", CategoryType.CUSTOM, 3L);
 
         categoryService.create(default1);
         categoryService.create(default2);
@@ -177,7 +179,7 @@ class CategoryServiceTest {
         List<Category> defaultCategories = categoryService.getDefaultCategories();
 
         assertEquals(2, defaultCategories.size());
-        assertTrue(defaultCategories.stream().allMatch(c -> c.getIsDefault()));
+        assertTrue(defaultCategories.stream().allMatch(c -> CategoryType.SYSTEM.equals(c.getType())));
         assertTrue(defaultCategories.stream().anyMatch(c -> "Развлечения".equals(c.getName())));
         assertTrue(defaultCategories.stream().anyMatch(c -> "Образование".equals(c.getName())));
     }
@@ -185,10 +187,10 @@ class CategoryServiceTest {
     @Test
     @DisplayName("Получение категорий пользователя")
     void testGetCategoriesByUser() {
-        Category default1 = new Category("Развлечения", true, 1L);
-        Category user1_cat1 = new Category("Личное", false, 2L);
-        Category user1_cat2 = new Category("Хобби", false, 2L);
-        Category user2_cat1 = new Category("Работа", false, 3L);
+        Category default1 = new Category("Развлечения", CategoryType.SYSTEM, 1L);
+        Category user1_cat1 = new Category("Личное", CategoryType.CUSTOM, 2L);
+        Category user1_cat2 = new Category("Хобби", CategoryType.CUSTOM, 2L);
+        Category user2_cat1 = new Category("Работа", CategoryType.CUSTOM, 3L);
 
         categoryService.create(default1);
         categoryService.create(user1_cat1);
@@ -206,10 +208,10 @@ class CategoryServiceTest {
     @Test
     @DisplayName("Получение доступных категорий для пользователя")
     void testGetAvailableCategoriesForUser() {
-        Category default1 = new Category("Развлечения", true, 1L);
-        Category default2 = new Category("Образование", true, 1L);
-        Category user2_cat1 = new Category("Личное", false, 2L);
-        Category user3_cat1 = new Category("Работа", false, 3L);
+        Category default1 = new Category("Развлечения", CategoryType.SYSTEM, 1L);
+        Category default2 = new Category("Образование", CategoryType.SYSTEM, 1L);
+        Category user2_cat1 = new Category("Личное", CategoryType.CUSTOM, 2L);
+        Category user3_cat1 = new Category("Работа", CategoryType.CUSTOM, 3L);
 
         categoryService.create(default1);
         categoryService.create(default2);
@@ -228,7 +230,7 @@ class CategoryServiceTest {
     @Test
     @DisplayName("Поиск категории по имени")
     void testFindByName_Success() {
-        Category category = new Category("Развлечения", true, 1L);
+        Category category = new Category("Развлечения", CategoryType.SYSTEM, 1L);
         categoryService.create(category);
 
         Optional<Category> found = categoryService.findByName("Развлечения");

@@ -8,16 +8,12 @@ public class Subscription extends BaseEntity {
     private Long userId;
     private Long categoryId;
     private String name;
-    private BigDecimal cost;
-    private Currency currency;
-    private Integer billingPeriodDays;
-    private LocalDate nextBillingDate;
+    private Payment payment;
     private Boolean isActive;
 
     public Subscription() {
         super();
-        this.currency = Currency.RUB;
-        this.billingPeriodDays = 30;
+        this.payment = new Payment();
         this.isActive = true;
     }
 
@@ -26,11 +22,8 @@ public class Subscription extends BaseEntity {
         this.userId = userId;
         this.categoryId = categoryId;
         this.name = name;
-        this.cost = cost;
-        this.currency = Currency.RUB;
-        this.billingPeriodDays = 30;
+        this.payment = new Payment(cost);
         this.isActive = true;
-        this.nextBillingDate = LocalDate.now().plusDays(billingPeriodDays);
     }
 
     public Subscription(Long userId, Long categoryId, String name, BigDecimal cost,
@@ -39,10 +32,7 @@ public class Subscription extends BaseEntity {
         this.userId = userId;
         this.categoryId = categoryId;
         this.name = name;
-        this.cost = cost;
-        this.currency = currency;
-        this.billingPeriodDays = billingPeriodDays;
-        this.nextBillingDate = nextBillingDate;
+        this.payment = new Payment(cost, currency, billingPeriodDays, nextBillingDate);
         this.isActive = true;
     }
 
@@ -70,36 +60,57 @@ public class Subscription extends BaseEntity {
         this.name = name;
     }
 
+    public Payment getPayment() {
+        return payment;
+    }
+
+    public void setPayment(Payment payment) {
+        this.payment = payment;
+    }
+
+    // Convenience methods для обратной совместимости
     public BigDecimal getCost() {
-        return cost;
+        return payment != null ? payment.getCost() : null;
     }
 
     public void setCost(BigDecimal cost) {
-        this.cost = cost;
+        if (payment == null) {
+            payment = new Payment();
+        }
+        payment.setCost(cost);
     }
 
     public Currency getCurrency() {
-        return currency;
+        return payment != null ? payment.getCurrency() : null;
     }
 
     public void setCurrency(Currency currency) {
-        this.currency = currency;
+        if (payment == null) {
+            payment = new Payment();
+        }
+        payment.setCurrency(currency);
     }
 
     public Integer getBillingPeriodDays() {
-        return billingPeriodDays;
+        return payment != null ? payment.getBillingPeriodDays() : null;
     }
 
     public void setBillingPeriodDays(Integer billingPeriodDays) {
-        this.billingPeriodDays = billingPeriodDays;
+        if (payment == null) {
+            payment = new Payment();
+        }
+        payment.setBillingPeriodDays(billingPeriodDays);
     }
 
     public LocalDate getNextBillingDate() {
-        return nextBillingDate;
+        return payment != null ? payment.getNextBillingDate() : null;
     }
 
     public void setNextBillingDate(LocalDate nextBillingDate) {
-        this.nextBillingDate = nextBillingDate;
+        if (payment == null) {
+            payment = new Payment();
+        }
+        payment.setNextBillingDate(nextBillingDate);
     }
 
     public Boolean getIsActive() {
@@ -114,13 +125,11 @@ public class Subscription extends BaseEntity {
     public String toString() {
         return "Subscription{" +
                 "id=" + getId() +
+                ", uuid=" + getUuid() +
                 ", userId=" + userId +
                 ", categoryId=" + categoryId +
                 ", name='" + name + '\'' +
-                ", cost=" + cost +
-                ", currency=" + currency +
-                ", billingPeriodDays=" + billingPeriodDays +
-                ", nextBillingDate=" + nextBillingDate +
+                ", payment=" + payment +
                 ", isActive=" + isActive +
                 ", createdAt=" + getCreatedAt() +
                 '}';

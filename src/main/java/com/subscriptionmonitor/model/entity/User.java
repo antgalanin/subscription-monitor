@@ -77,6 +77,7 @@ public class User extends BaseEntity {
     public String toString() {
         return "User{" +
                 "id=" + getId() +
+                ", uuid=" + getUuid() +
                 ", username='" + username + '\'' +
                 ", email='" + email + '\'' +
                 ", role=" + role +

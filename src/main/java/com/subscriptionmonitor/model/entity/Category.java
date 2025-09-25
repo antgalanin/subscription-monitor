@@ -1,25 +1,27 @@
 package com.subscriptionmonitor.model.entity;
 
+import com.subscriptionmonitor.model.enums.CategoryType;
+
 public class Category extends BaseEntity {
     private String name;
-    private Boolean isDefault;
+    private CategoryType type;
     private Long createdByUserId;
 
     public Category() {
         super();
-        this.isDefault = false;
+        this.type = CategoryType.CUSTOM;
     }
 
     public Category(String name) {
         super();
         this.name = name;
-        this.isDefault = false;
+        this.type = CategoryType.CUSTOM;
     }
 
-    public Category(String name, Boolean isDefault, Long createdByUserId) {
+    public Category(String name, CategoryType type, Long createdByUserId) {
         super();
         this.name = name;
-        this.isDefault = isDefault;
+        this.type = type;
         this.createdByUserId = createdByUserId;
     }
 
@@ -31,12 +33,12 @@ public class Category extends BaseEntity {
         this.name = name;
     }
 
-    public Boolean getIsDefault() {
-        return isDefault;
+    public CategoryType getType() {
+        return type;
     }
 
-    public void setIsDefault(Boolean isDefault) {
-        this.isDefault = isDefault;
+    public void setType(CategoryType type) {
+        this.type = type;
     }
 
     public Long getCreatedByUserId() {
@@ -51,8 +53,9 @@ public class Category extends BaseEntity {
     public String toString() {
         return "Category{" +
                 "id=" + getId() +
+                ", uuid=" + getUuid() +
                 ", name='" + name + '\'' +
-                ", isDefault=" + isDefault +
+                ", type=" + type +
                 ", createdByUserId=" + createdByUserId +
                 ", createdAt=" + getCreatedAt() +
                 '}';

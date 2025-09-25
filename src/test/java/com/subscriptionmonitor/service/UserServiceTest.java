@@ -35,6 +35,7 @@ class UserServiceTest {
 
         assertNotNull(created);
         assertNotNull(created.getId());
+        assertNotNull(created.getUuid());
         assertEquals("testuser", created.getUsername());
         assertEquals("test@example.com", created.getEmail());
         assertEquals(UserRole.USER, created.getRole());

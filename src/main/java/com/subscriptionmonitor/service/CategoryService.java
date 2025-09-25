@@ -1,6 +1,7 @@
 package com.subscriptionmonitor.service;
 
 import com.subscriptionmonitor.model.entity.Category;
+import com.subscriptionmonitor.model.enums.CategoryType;
 import com.subscriptionmonitor.storage.DataStorage;
 
 import java.util.Collections;
@@ -68,7 +69,7 @@ public class CategoryService implements CrudService<Category, Long> {
 
     public List<Category> getDefaultCategories() {
         return storage.getCategories().values().stream()
-                .filter(category -> Boolean.TRUE.equals(category.getIsDefault()))
+                .filter(category -> CategoryType.SYSTEM.equals(category.getType()))
                 .collect(Collectors.toList());
     }
 
@@ -88,7 +89,7 @@ public class CategoryService implements CrudService<Category, Long> {
         }
 
         return storage.getCategories().values().stream()
-                .filter(category -> Boolean.TRUE.equals(category.getIsDefault())
+                .filter(category -> CategoryType.SYSTEM.equals(category.getType())
                                  || userId.equals(category.getCreatedByUserId()))
                 .collect(Collectors.toList());
     }

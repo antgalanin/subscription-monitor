@@ -2,17 +2,15 @@ package com.subscriptionmonitor.model.entity;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
 public abstract class BaseEntity {
     private Long id;
+    private UUID uuid;
     private LocalDateTime createdAt;
 
     public BaseEntity() {
-        this.createdAt = LocalDateTime.now();
-    }
-
-    public BaseEntity(Long id) {
-        this.id = id;
+        this.uuid = UUID.randomUUID();
         this.createdAt = LocalDateTime.now();
     }
 
@@ -22,6 +20,14 @@ public abstract class BaseEntity {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public UUID getUuid() {
+        return uuid;
+    }
+
+    public void setUuid(UUID uuid) {
+        this.uuid = uuid;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -49,6 +55,7 @@ public abstract class BaseEntity {
     public String toString() {
         return getClass().getSimpleName() + "{" +
                 "id=" + id +
+                ", uuid=" + uuid +
                 ", createdAt=" + createdAt +
                 '}';
     }

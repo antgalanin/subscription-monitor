@@ -5,12 +5,14 @@ import com.subscriptionmonitor.model.entity.Category;
 import com.subscriptionmonitor.model.entity.Subscription;
 import com.subscriptionmonitor.model.enums.UserRole;
 import com.subscriptionmonitor.model.enums.Currency;
+import com.subscriptionmonitor.model.enums.CategoryType;
 import com.subscriptionmonitor.service.UserService;
 import com.subscriptionmonitor.service.CategoryService;
 import com.subscriptionmonitor.service.SubscriptionService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -19,6 +21,15 @@ public class Application {
     private final UserService userService;
     private final CategoryService categoryService;
     private final SubscriptionService subscriptionService;
+
+    private Long adminId;
+    private Long user1Id;
+    private Long user2Id;
+    private Long entertainmentCategoryId;
+    private Long productivityCategoryId;
+    private Long educationCategoryId;
+    private Long financeCategoryId;
+    private UUID netflixId;
 
     public Application() {
         this.userService = new UserService();
@@ -60,9 +71,13 @@ public class Application {
         User user1 = new User("ivan_petrov", "ivan@example.com", "password123");
         User user2 = new User("anna_smith", "anna@example.com", "securepass");
 
-        userService.create(admin);
-        userService.create(user1);
-        userService.create(user2);
+        User createdAdmin = userService.create(admin);
+        User createdUser1 = userService.create(user1);
+        User createdUser2 = userService.create(user2);
+
+        adminId = createdAdmin.getId();
+        user1Id = createdUser1.getId();
+        user2Id = createdUser2.getId();
 
         System.out.println("Создано пользователей: " + userService.getTotalCount());
         userService.findAll().forEach(System.out::println);
@@ -70,19 +85,24 @@ public class Application {
 
     private void createCategories() {
         // Системные
-        Category entertainment = new Category("Развлечения", true, 1L);
-        Category productivity = new Category("Продуктивность", true, 1L);
-        Category education = new Category("Образование", true, 1L);
-        Category finance = new Category("Финансы", true, 1L);
+        Category entertainment = new Category("Развлечения", CategoryType.SYSTEM, adminId);
+        Category productivity = new Category("Продуктивность", CategoryType.SYSTEM, adminId);
+        Category education = new Category("Образование", CategoryType.SYSTEM, adminId);
+        Category finance = new Category("Финансы", CategoryType.SYSTEM, adminId);
 
-        categoryService.create(entertainment);
-        categoryService.create(productivity);
-        categoryService.create(education);
-        categoryService.create(finance);
+        Category createdEntertainment = categoryService.create(entertainment);
+        Category createdProductivity = categoryService.create(productivity);
+        Category createdEducation = categoryService.create(education);
+        Category createdFinance = categoryService.create(finance);
+
+        entertainmentCategoryId = createdEntertainment.getId();
+        productivityCategoryId = createdProductivity.getId();
+        educationCategoryId = createdEducation.getId();
+        financeCategoryId = createdFinance.getId();
 
         // Пользователей
-        Category gaming = new Category("Игры", false, 2L);
-        Category fitness = new Category("Фитнес", false, 3L);
+        Category gaming = new Category("Игры", CategoryType.CUSTOM, user1Id);
+        Category fitness = new Category("Фитнес", CategoryType.CUSTOM, user2Id);
 
         categoryService.create(gaming);
         categoryService.create(fitness);
@@ -93,23 +113,25 @@ public class Application {
     }
 
     private void createSubscriptions() {
-        Subscription netflix = new Subscription(2L, 1L, "Netflix",
+        Subscription netflix = new Subscription(user1Id, entertainmentCategoryId, "Netflix",
             new BigDecimal("990"), Currency.RUB, 30, LocalDate.now().plusDays(15));
-        Subscription spotify = new Subscription(2L, 1L, "Spotify Premium",
+        Subscription spotify = new Subscription(user1Id, entertainmentCategoryId, "Spotify Premium",
             new BigDecimal("399"), Currency.RUB, 30, LocalDate.now().plusDays(3));
-        Subscription chatgpt = new Subscription(2L, 2L, "ChatGPT Plus",
+        Subscription chatgpt = new Subscription(user1Id, productivityCategoryId, "ChatGPT Plus",
             new BigDecimal("20"), Currency.USD, 30, LocalDate.now().plusDays(10));
 
-        Subscription coursera = new Subscription(3L, 3L, "Coursera Plus",
+        Subscription coursera = new Subscription(user2Id, educationCategoryId, "Coursera Plus",
             new BigDecimal("59"), Currency.USD, 30, LocalDate.now().plusDays(7));
-        Subscription notion = new Subscription(3L, 2L, "Notion Pro",
+        Subscription notion = new Subscription(user2Id, productivityCategoryId, "Notion Pro",
             new BigDecimal("8"), Currency.USD, 30, LocalDate.now().plusDays(20));
 
-        subscriptionService.create(netflix);
+        Subscription createdNetflix = subscriptionService.create(netflix);
         subscriptionService.create(spotify);
         subscriptionService.create(chatgpt);
         subscriptionService.create(coursera);
         subscriptionService.create(notion);
+
+        netflixId = createdNetflix.getUuid();
 
         System.out.println("Создано подписок: " + subscriptionService.getTotalCount());
         subscriptionService.findAll().forEach(System.out::println);
@@ -120,32 +142,32 @@ public class Application {
         userService.findByUsername("ivan_petrov").ifPresent(System.out::println);
 
         System.out.println("\nПодписки пользователя ivan_petrov:");
-        subscriptionService.getSubscriptionsByUser(2L).forEach(System.out::println);
+        subscriptionService.getSubscriptionsByUser(user1Id).forEach(System.out::println);
 
         System.out.println("\nПодписки в валюте USD:");
         subscriptionService.getSubscriptionsByCurrency(Currency.USD).forEach(System.out::println);
 
         System.out.println("\nПредстоящие списания в течение 5 дней для ivan_petrov:");
-        subscriptionService.getUpcomingBillings(2L, 5).forEach(System.out::println);
+        subscriptionService.getUpcomingBillings(user1Id, 5).forEach(System.out::println);
 
         System.out.println("\nДоступные категории для пользователя anna_smith:");
-        categoryService.getAvailableCategoriesForUser(3L).forEach(System.out::println);
+        categoryService.getAvailableCategoriesForUser(user2Id).forEach(System.out::println);
     }
 
     private void demonstrateCalculations() {
         System.out.println("Месячные расходы ivan_petrov в рублях: " +
-            subscriptionService.calculateTotalMonthlyCost(2L, Currency.RUB) + " ₽");
+            subscriptionService.calculateTotalMonthlyCost(user1Id, Currency.RUB) + " ₽");
 
         System.out.println("Месячные расходы ivan_petrov в долларах: $" +
-            subscriptionService.calculateTotalMonthlyCost(2L, Currency.USD));
+            subscriptionService.calculateTotalMonthlyCost(user1Id, Currency.USD));
 
         System.out.println("Месячные расходы anna_smith в долларах: $" +
-            subscriptionService.calculateTotalMonthlyCost(3L, Currency.USD));
+            subscriptionService.calculateTotalMonthlyCost(user2Id, Currency.USD));
 
         System.out.println("\nДеактивация подписки Netflix...");
-        subscriptionService.deactivateSubscription(1L);
+        subscriptionService.deactivateSubscription(netflixId);
         System.out.println("Активные подписки ivan_petrov после деактивации:");
-        subscriptionService.getActiveSubscriptions(2L).forEach(System.out::println);
+        subscriptionService.getActiveSubscriptions(user1Id).forEach(System.out::println);
     }
 
     private void demonstrateMultithreading() {
@@ -180,7 +202,7 @@ public class Application {
                     long threadId = Thread.currentThread().getId();
                     long timestamp = System.nanoTime() % 10000;
                     String subName = "Service_" + subId + "_" + threadId + "_" + timestamp;
-                    Subscription subscription = new Subscription(2L, 1L, subName,
+                    Subscription subscription = new Subscription(user1Id, entertainmentCategoryId, subName,
                         new BigDecimal("100").multiply(BigDecimal.valueOf(subId)));
 
                     Subscription created = subscriptionService.create(subscription);
