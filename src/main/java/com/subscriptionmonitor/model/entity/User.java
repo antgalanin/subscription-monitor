@@ -1,19 +1,33 @@
 package com.subscriptionmonitor.model.entity;
 
 import com.subscriptionmonitor.model.enums.UserRole;
+import jakarta.persistence.*;
+import lombok.*;
 
+@Entity
+@Table(name = "users")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(callSuper = true)
 public class User extends BaseEntity {
-    private String username;
-    private String email;
-    private String password;
-    private UserRole role;
-    private Integer notificationDays;
 
-    public User() {
-        super();
-        this.role = UserRole.USER;
-        this.notificationDays = 3;
-    }
+    @Column(nullable = false, unique = true, length = 50)
+    private String username;
+
+    @Column(nullable = false, unique = true, length = 100)
+    private String email;
+
+    @Column(nullable = false, length = 255)
+    private String password;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private UserRole role = UserRole.USER;
+
+    @Column(name = "notification_days", nullable = false)
+    private Integer notificationDays = 3;
 
     public User(String username, String email, String password) {
         super();
@@ -31,58 +45,5 @@ public class User extends BaseEntity {
         this.password = password;
         this.role = role;
         this.notificationDays = notificationDays;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public UserRole getRole() {
-        return role;
-    }
-
-    public void setRole(UserRole role) {
-        this.role = role;
-    }
-
-    public Integer getNotificationDays() {
-        return notificationDays;
-    }
-
-    public void setNotificationDays(Integer notificationDays) {
-        this.notificationDays = notificationDays;
-    }
-
-    @Override
-    public String toString() {
-        return "User{" +
-                "id=" + getId() +
-                ", uuid=" + getUuid() +
-                ", username='" + username + '\'' +
-                ", email='" + email + '\'' +
-                ", role=" + role +
-                ", notificationDays=" + notificationDays +
-                ", createdAt=" + getCreatedAt() +
-                '}';
     }
 }
