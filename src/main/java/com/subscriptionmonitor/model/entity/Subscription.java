@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Entity
 @Table(name = "subscriptions")
@@ -16,10 +17,10 @@ import java.time.LocalDate;
 public class Subscription extends BaseEntity {
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private UUID userId;
 
     @Column(name = "category_id", nullable = false)
-    private Long categoryId;
+    private UUID categoryId;
 
     @Column(nullable = false, length = 200)
     private String name;
@@ -31,7 +32,7 @@ public class Subscription extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    public Subscription(Long userId, Long categoryId, String name, BigDecimal cost) {
+    public Subscription(UUID userId, UUID categoryId, String name, BigDecimal cost) {
         super();
         this.userId = userId;
         this.categoryId = categoryId;
@@ -40,7 +41,7 @@ public class Subscription extends BaseEntity {
         this.isActive = true;
     }
 
-    public Subscription(Long userId, Long categoryId, String name, BigDecimal cost,
+    public Subscription(UUID userId, UUID categoryId, String name, BigDecimal cost,
                        Currency currency, Integer billingPeriodDays, LocalDate nextBillingDate) {
         super();
         this.userId = userId;

@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -27,7 +28,7 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<Notification> findById(Long id) {
+    public Optional<Notification> findById(UUID id) {
         return notificationRepository.findById(id);
     }
 
@@ -37,13 +38,18 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public List<Notification> getNotificationsByUser(Long userId) {
+    public List<Notification> findByUserId(UUID userId) {
         return notificationRepository.findByUserId(userId);
     }
 
     @Transactional(readOnly = true)
-    public List<Notification> getNotificationsBySubscription(Long subscriptionId) {
+    public List<Notification> findBySubscriptionId(UUID subscriptionId) {
         return notificationRepository.findBySubscriptionId(subscriptionId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Notification> findByIsSent(Boolean isSent) {
+        return notificationRepository.findByIsSent(isSent);
     }
 
     @Transactional(readOnly = true)
@@ -57,7 +63,7 @@ public class NotificationService {
         return notificationRepository.findByIsSent(false);
     }
 
-    public void markAsSent(Long id) {
+    public void markAsSent(UUID id) {
         log.debug("Marking notification {} as sent", id);
         notificationRepository.findById(id).ifPresent(notification -> {
             notification.setIsSent(true);
@@ -70,7 +76,7 @@ public class NotificationService {
         return notificationRepository.save(notification);
     }
 
-    public void deleteById(Long id) {
+    public void delete(UUID id) {
         log.debug("Deleting notification: {}", id);
         notificationRepository.deleteById(id);
     }

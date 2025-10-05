@@ -14,18 +14,20 @@ import java.util.UUID;
 public abstract class BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false, unique = true)
-    private UUID uuid;
+    @Column(name = "id", updatable = false)
+    private UUID id;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public BaseEntity() {
-        this.uuid = UUID.randomUUID();
-        this.createdAt = LocalDateTime.now();
+    @PrePersist
+    protected void onCreate() {
+        if (id == null) {
+            id = UUID.randomUUID();
+        }
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
     @Override
@@ -45,7 +47,6 @@ public abstract class BaseEntity {
     public String toString() {
         return getClass().getSimpleName() + "{" +
                 "id=" + id +
-                ", uuid=" + uuid +
                 ", createdAt=" + createdAt +
                 '}';
     }

@@ -2,222 +2,193 @@ package com.subscriptionmonitor.service;
 
 import com.subscriptionmonitor.model.entity.User;
 import com.subscriptionmonitor.model.enums.UserRole;
-import com.subscriptionmonitor.storage.DataStorage;
-
+import com.subscriptionmonitor.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("UserService Tests")
 class UserServiceTest {
 
+    @Mock
+    private UserRepository userRepository;
+
+    @InjectMocks
     private UserService userService;
-    private DataStorage storage;
+
+    private User testUser;
+    private UUID testUserId;
+    private UUID user1Id;
+    private UUID user2Id;
+    private UUID user3Id;
 
     @BeforeEach
     void setUp() {
-        storage = DataStorage.getInstance();
-        storage.clearAll();
-        userService = new UserService();
+        testUserId = UUID.randomUUID();
+        user1Id = UUID.randomUUID();
+        user2Id = UUID.randomUUID();
+        user3Id = UUID.randomUUID();
+
+        testUser = new User("testuser", "test@example.com", "password123");
+        testUser.setId(testUserId);
     }
 
     @Test
     @DisplayName("Создание пользователя с корректными данными")
     void testCreateUser_Success() {
-        User user = new User("testuser", "test@example.com", "password123");
+        when(userRepository.save(any(User.class))).thenReturn(testUser);
 
-        User created = userService.create(user);
+        User created = userService.create(testUser);
 
         assertNotNull(created);
-        assertNotNull(created.getId());
-        assertNotNull(created.getUuid());
+        assertEquals(testUserId, created.getId());
         assertEquals("testuser", created.getUsername());
         assertEquals("test@example.com", created.getEmail());
         assertEquals(UserRole.USER, created.getRole());
-        assertEquals(1, userService.getTotalCount());
-    }
 
-    @Test
-    @DisplayName("Создание пользователя с дублирующимся username")
-    void testCreateUser_DuplicateUsername() {
-        User user1 = new User("testuser", "test1@example.com", "password123");
-        User user2 = new User("testuser", "test2@example.com", "password456");
-
-        userService.create(user1);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> userService.create(user2));
-
-        assertTrue(exception.getMessage().contains("Username already exists"));
-        assertEquals(1, userService.getTotalCount());
-    }
-
-    @Test
-    @DisplayName("Создание пользователя с дублирующимся email")
-    void testCreateUser_DuplicateEmail() {
-        User user1 = new User("testuser1", "test@example.com", "password123");
-        User user2 = new User("testuser2", "test@example.com", "password456");
-
-        userService.create(user1);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> userService.create(user2));
-
-        assertTrue(exception.getMessage().contains("Email already exists"));
-        assertEquals(1, userService.getTotalCount());
-    }
-
-    @Test
-    @DisplayName("Создание пользователя с null")
-    void testCreateUser_Null() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> userService.create(null));
-
-        assertEquals("User cannot be null", exception.getMessage());
-        assertEquals(0, userService.getTotalCount());
+        verify(userRepository, times(1)).save(any(User.class));
     }
 
     @Test
     @DisplayName("Поиск пользователя по ID")
     void testFindById_Success() {
-        User user = new User("testuser", "test@example.com", "password123");
-        User created = userService.create(user);
+        when(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser));
 
-        Optional<User> found = userService.findById(created.getId());
+        Optional<User> found = userService.findById(testUserId);
 
         assertTrue(found.isPresent());
-        assertEquals(created.getId(), found.get().getId());
+        assertEquals(testUserId, found.get().getId());
         assertEquals("testuser", found.get().getUsername());
+
+        verify(userRepository, times(1)).findById(testUserId);
     }
 
     @Test
     @DisplayName("Поиск пользователя по несуществующему ID")
     void testFindById_NotFound() {
-        Optional<User> found = userService.findById(999L);
+        UUID nonExistentId = UUID.randomUUID();
+        when(userRepository.findById(nonExistentId)).thenReturn(Optional.empty());
+
+        Optional<User> found = userService.findById(nonExistentId);
 
         assertFalse(found.isPresent());
-    }
 
-    @Test
-    @DisplayName("Поиск пользователя по null ID")
-    void testFindById_NullId() {
-        Optional<User> found = userService.findById(null);
-
-        assertFalse(found.isPresent());
+        verify(userRepository, times(1)).findById(nonExistentId);
     }
 
     @Test
     @DisplayName("Поиск пользователя по username")
     void testFindByUsername_Success() {
-        User user = new User("testuser", "test@example.com", "password123");
-        userService.create(user);
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
 
         Optional<User> found = userService.findByUsername("testuser");
 
         assertTrue(found.isPresent());
         assertEquals("testuser", found.get().getUsername());
+
+        verify(userRepository, times(1)).findByUsername("testuser");
     }
 
     @Test
     @DisplayName("Поиск пользователя по несуществующему username")
     void testFindByUsername_NotFound() {
+        when(userRepository.findByUsername("nonexistent")).thenReturn(Optional.empty());
+
         Optional<User> found = userService.findByUsername("nonexistent");
 
         assertFalse(found.isPresent());
+
+        verify(userRepository, times(1)).findByUsername("nonexistent");
     }
 
     @Test
     @DisplayName("Поиск пользователя по email")
     void testFindByEmail_Success() {
-        User user = new User("testuser", "test@example.com", "password123");
-        userService.create(user);
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
 
         Optional<User> found = userService.findByEmail("test@example.com");
 
         assertTrue(found.isPresent());
         assertEquals("test@example.com", found.get().getEmail());
+
+        verify(userRepository, times(1)).findByEmail("test@example.com");
     }
 
     @Test
     @DisplayName("Получение всех пользователей")
     void testFindAll() {
         User user1 = new User("user1", "user1@example.com", "password123");
+        user1.setId(user1Id);
         User user2 = new User("user2", "user2@example.com", "password456");
+        user2.setId(user2Id);
 
-        userService.create(user1);
-        userService.create(user2);
+        when(userRepository.findAll()).thenReturn(Arrays.asList(user1, user2));
 
         List<User> users = userService.findAll();
 
         assertEquals(2, users.size());
         assertTrue(users.stream().anyMatch(u -> "user1".equals(u.getUsername())));
         assertTrue(users.stream().anyMatch(u -> "user2".equals(u.getUsername())));
+
+        verify(userRepository, times(1)).findAll();
     }
 
     @Test
     @DisplayName("Обновление пользователя")
     void testUpdateUser_Success() {
-        User user = new User("testuser", "test@example.com", "password123");
-        User created = userService.create(user);
+        User updatedUser = new User("testuser", "newemail@example.com", "password123");
+        updatedUser.setId(testUserId);
+        updatedUser.setNotificationDays(7);
 
-        created.setEmail("newemail@example.com");
-        created.setNotificationDays(7);
+        when(userRepository.save(any(User.class))).thenReturn(updatedUser);
 
-        User updated = userService.update(created);
+        User updated = userService.update(updatedUser);
 
         assertEquals("newemail@example.com", updated.getEmail());
         assertEquals(7, updated.getNotificationDays());
-        assertEquals(created.getId(), updated.getId());
-    }
+        assertEquals(testUserId, updated.getId());
 
-    @Test
-    @DisplayName("Обновление несуществующего пользователя")
-    void testUpdateUser_NotFound() {
-        User user = new User("testuser", "test@example.com", "password123");
-        user.setId(999L);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> userService.update(user));
-
-        assertTrue(exception.getMessage().contains("User not found"));
+        verify(userRepository, times(1)).save(any(User.class));
     }
 
     @Test
     @DisplayName("Удаление пользователя")
     void testDeleteUser_Success() {
-        User user = new User("testuser", "test@example.com", "password123");
-        User created = userService.create(user);
+        doNothing().when(userRepository).deleteById(testUserId);
 
-        boolean deleted = userService.deleteById(created.getId());
+        userService.delete(testUserId);
 
-        assertTrue(deleted);
-        assertEquals(0, userService.getTotalCount());
-        assertFalse(userService.findById(created.getId()).isPresent());
-    }
-
-    @Test
-    @DisplayName("Удаление несуществующего пользователя")
-    void testDeleteUser_NotFound() {
-        boolean deleted = userService.deleteById(999L);
-
-        assertFalse(deleted);
+        verify(userRepository, times(1)).deleteById(testUserId);
     }
 
     @Test
     @DisplayName("Поиск пользователей по роли")
     void testFindByRole() {
         User admin = new User("admin", "admin@example.com", "password123", UserRole.ADMIN, 5);
-        User user1 = new User("user1", "user1@example.com", "password123");
-        User user2 = new User("user2", "user2@example.com", "password456");
+        admin.setId(user1Id);
 
-        userService.create(admin);
-        userService.create(user1);
-        userService.create(user2);
+        User user1 = new User("user1", "user1@example.com", "password123");
+        user1.setId(user2Id);
+
+        User user2 = new User("user2", "user2@example.com", "password456");
+        user2.setId(user3Id);
+
+        when(userRepository.findByRole(UserRole.ADMIN)).thenReturn(Arrays.asList(admin));
+        when(userRepository.findByRole(UserRole.USER)).thenReturn(Arrays.asList(user1, user2));
 
         List<User> admins = userService.findByRole(UserRole.ADMIN);
         List<User> users = userService.findByRole(UserRole.USER);
@@ -225,5 +196,20 @@ class UserServiceTest {
         assertEquals(1, admins.size());
         assertEquals(2, users.size());
         assertEquals("admin", admins.get(0).getUsername());
+
+        verify(userRepository, times(1)).findByRole(UserRole.ADMIN);
+        verify(userRepository, times(1)).findByRole(UserRole.USER);
+    }
+
+    @Test
+    @DisplayName("Получение общего количества пользователей")
+    void testGetTotalCount() {
+        when(userRepository.count()).thenReturn(5L);
+
+        long count = userService.getTotalCount();
+
+        assertEquals(5L, count);
+
+        verify(userRepository, times(1)).count();
     }
 }

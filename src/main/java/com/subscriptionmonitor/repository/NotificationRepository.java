@@ -7,39 +7,18 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
-/**
- * Repository для работы с уведомлениями.
- *
- * @author Галанин А.Н.
- * @version 2.0 (ЛР2 - новая модель)
- */
 @Repository
-public interface NotificationRepository extends JpaRepository<Notification, Long> {
+public interface NotificationRepository extends JpaRepository<Notification, UUID> {
 
-    /**
-     * Найти все уведомления пользователя.
-     */
-    List<Notification> findByUserId(Long userId);
+    List<Notification> findByUserId(UUID userId);
 
-    /**
-     * Найти уведомления по подписке.
-     */
-    List<Notification> findBySubscriptionId(Long subscriptionId);
+    List<Notification> findBySubscriptionId(UUID subscriptionId);
 
-    /**
-     * Найти уведомления по статусу отправки.
-     */
     List<Notification> findByIsSent(Boolean isSent);
 
-    /**
-     * Найти неотправленные уведомления с датой до указанной.
-     * Используется для получения уведомлений, которые пора отправить.
-     */
     List<Notification> findByNotificationDateBeforeAndIsSent(LocalDateTime date, Boolean isSent);
 
-    /**
-     * Найти уведомления пользователя по типу.
-     */
-    List<Notification> findByUserIdAndType(Long userId, NotificationType type);
+    List<Notification> findByUserIdAndType(UUID userId, NotificationType type);
 }

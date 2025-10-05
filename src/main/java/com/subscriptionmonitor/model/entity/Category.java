@@ -4,12 +4,13 @@ import com.subscriptionmonitor.model.enums.CategoryType;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "categories")
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 @ToString(callSuper = true)
 public class Category extends BaseEntity {
 
@@ -21,7 +22,7 @@ public class Category extends BaseEntity {
     private CategoryType type = CategoryType.CUSTOM;
 
     @Column(name = "created_by_user_id")
-    private Long createdByUserId;
+    private UUID createdByUserId;
 
     public Category(String name) {
         super();
@@ -29,7 +30,7 @@ public class Category extends BaseEntity {
         this.type = CategoryType.CUSTOM;
     }
 
-    public Category(String name, CategoryType type, Long createdByUserId) {
+    public Category(String name, CategoryType type, UUID createdByUserId) {
         super();
         this.name = name;
         this.type = type;

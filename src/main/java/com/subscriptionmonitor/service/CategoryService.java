@@ -2,109 +2,71 @@ package com.subscriptionmonitor.service;
 
 import com.subscriptionmonitor.model.entity.Category;
 import com.subscriptionmonitor.model.enums.CategoryType;
-import com.subscriptionmonitor.storage.DataStorage;
+import com.subscriptionmonitor.repository.CategoryRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
-public class CategoryService implements CrudService<Category, Long> {
-    private final DataStorage storage;
+@Service
+@Transactional
+@RequiredArgsConstructor
+@Slf4j
+public class CategoryService {
 
-    public CategoryService() {
-        this.storage = DataStorage.getInstance();
-    }
+    private final CategoryRepository categoryRepository;
 
-    @Override
     public Category create(Category category) {
-        if (category == null) {
-            throw new IllegalArgumentException("Category cannot be null");
-        }
-
-        if (category.getName() == null || category.getName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Category name cannot be null or empty");
-        }
-
-        Long id = storage.generateCategoryId();
-        category.setId(id);
-        storage.getCategories().put(id, category);
-        return category;
+        log.debug("Creating category: {}", category.getName());
+        return categoryRepository.save(category);
     }
 
-    @Override
-    public Optional<Category> findById(Long id) {
-        if (id == null) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(storage.getCategories().get(id));
+    @Transactional(readOnly = true)
+    public Optional<Category> findById(UUID id) {
+        log.debug("Finding category by id: {}", id);
+        return categoryRepository.findById(id);
     }
 
-    @Override
+    @Transactional(readOnly = true)
     public List<Category> findAll() {
-        return storage.getCategories().values().stream().collect(Collectors.toList());
+        log.debug("Finding all categories");
+        return categoryRepository.findAll();
     }
 
-    @Override
+    @Transactional(readOnly = true)
+    public List<Category> findByType(CategoryType type) {
+        log.debug("Finding categories by type: {}", type);
+        return categoryRepository.findByType(type);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Category> findByCreatedByUserId(UUID userId) {
+        log.debug("Finding categories created by user: {}", userId);
+        return categoryRepository.findByCreatedByUserId(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Category> findByTypeAndCreatedByUserId(CategoryType type, UUID userId) {
+        log.debug("Finding categories by type {} and user {}", type, userId);
+        return categoryRepository.findByTypeAndCreatedByUserId(type, userId);
+    }
+
     public Category update(Category category) {
-        if (category == null || category.getId() == null) {
-            throw new IllegalArgumentException("Category and category ID cannot be null");
-        }
-
-        if (!storage.getCategories().containsKey(category.getId())) {
-            throw new IllegalArgumentException("Category not found with ID: " + category.getId());
-        }
-
-        storage.getCategories().put(category.getId(), category);
-        return category;
+        log.debug("Updating category: {}", category.getId());
+        return categoryRepository.save(category);
     }
 
-    @Override
-    public boolean deleteById(Long id) {
-        if (id == null) {
-            return false;
-        }
-        return storage.getCategories().remove(id) != null;
+    public void delete(UUID id) {
+        log.debug("Deleting category: {}", id);
+        categoryRepository.deleteById(id);
     }
 
-    public List<Category> getDefaultCategories() {
-        return storage.getCategories().values().stream()
-                .filter(category -> CategoryType.SYSTEM.equals(category.getType()))
-                .collect(Collectors.toList());
-    }
-
-    public List<Category> getCategoriesByUser(Long userId) {
-        if (userId == null) {
-            return Collections.emptyList();
-        }
-
-        return storage.getCategories().values().stream()
-                .filter(category -> userId.equals(category.getCreatedByUserId()))
-                .collect(Collectors.toList());
-    }
-
-    public List<Category> getAvailableCategoriesForUser(Long userId) {
-        if (userId == null) {
-            return getDefaultCategories();
-        }
-
-        return storage.getCategories().values().stream()
-                .filter(category -> CategoryType.SYSTEM.equals(category.getType())
-                                 || userId.equals(category.getCreatedByUserId()))
-                .collect(Collectors.toList());
-    }
-
-    public Optional<Category> findByName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            return Optional.empty();
-        }
-
-        return storage.getCategories().values().stream()
-                .filter(category -> name.equals(category.getName()))
-                .findFirst();
-    }
-
-    public int getTotalCount() {
-        return storage.getTotalCategoriesCount();
+    public void deleteAll() {
+        log.debug("Deleting all categories");
+        categoryRepository.deleteAll();
     }
 }

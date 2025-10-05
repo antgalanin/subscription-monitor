@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "notifications")
@@ -16,10 +17,10 @@ import java.time.LocalDateTime;
 public class Notification extends BaseEntity {
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private UUID userId;
 
     @Column(name = "subscription_id", nullable = false)
-    private Long subscriptionId;
+    private UUID subscriptionId;
 
     @Column(name = "notification_date", nullable = false)
     private LocalDateTime notificationDate;
@@ -34,7 +35,7 @@ public class Notification extends BaseEntity {
     @Column(name = "message", nullable = false, columnDefinition = "TEXT")
     private String message;
 
-    public Notification(Long userId, Long subscriptionId, LocalDateTime notificationDate,
+    public Notification(UUID userId, UUID subscriptionId, LocalDateTime notificationDate,
                        NotificationType type, String message) {
         super();
         this.userId = userId;

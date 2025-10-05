@@ -7,34 +7,17 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.UUID;
 
-/**
- * Repository для работы с подписками.
- *
- * @author Галанин А.Н.
- * @version 2.0 (ЛР2)
- */
 @Repository
-public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
+public interface SubscriptionRepository extends JpaRepository<Subscription, UUID> {
 
-    /**
-     * Найти все подписки пользователя.
-     */
-    List<Subscription> findByUserId(Long userId);
+    List<Subscription> findByUserId(UUID userId);
 
-    /**
-     * Найти подписки пользователя по статусу активности.
-     */
-    List<Subscription> findByUserIdAndIsActive(Long userId, Boolean isActive);
+    List<Subscription> findByUserIdAndIsActive(UUID userId, Boolean isActive);
 
-    /**
-     * Найти активные подписки пользователя (альтернативная версия).
-     */
     @Query("SELECT s FROM Subscription s WHERE s.userId = :userId AND s.isActive = true")
-    List<Subscription> findActiveSubscriptionsByUserId(@Param("userId") Long userId);
+    List<Subscription> findActiveSubscriptionsByUserId(@Param("userId") UUID userId);
 
-    /**
-     * Найти подписки по категории.
-     */
-    List<Subscription> findByCategoryId(Long categoryId);
+    List<Subscription> findByCategoryId(UUID categoryId);
 }
