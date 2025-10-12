@@ -65,6 +65,14 @@ public class SubscriptionService {
         return subscriptionRepository.save(subscription);
     }
 
+    public Optional<Subscription> deactivate(UUID id) {
+        log.debug("Deactivating subscription: {}", id);
+        return subscriptionRepository.findById(id).map(subscription -> {
+            subscription.setIsActive(false);
+            return subscriptionRepository.save(subscription);
+        });
+    }
+
     public void delete(UUID id) {
         log.debug("Deleting subscription: {}", id);
         subscriptionRepository.deleteById(id);

@@ -53,6 +53,11 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
+    public List<Notification> findByUserIdAndType(UUID userId, NotificationType type) {
+        return notificationRepository.findByUserIdAndType(userId, type);
+    }
+
+    @Transactional(readOnly = true)
     public List<Notification> getPendingNotifications() {
         return notificationRepository.findByNotificationDateBeforeAndIsSent(
                 LocalDateTime.now(), false);

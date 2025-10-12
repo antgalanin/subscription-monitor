@@ -275,6 +275,31 @@ class NotificationServiceTest {
     }
 
     @Test
+    @DisplayName("Поиск уведомлений по пользователю и типу")
+    void testFindByUserIdAndType() {
+        Notification upcomingPayment1 = new Notification(
+                userId, subscription1Id, LocalDateTime.now(), NotificationType.UPCOMING_PAYMENT, "Upcoming 1"
+        );
+        upcomingPayment1.setId(notification1Id);
+
+        Notification upcomingPayment2 = new Notification(
+                userId, subscription2Id, LocalDateTime.now(), NotificationType.UPCOMING_PAYMENT, "Upcoming 2"
+        );
+        upcomingPayment2.setId(notification2Id);
+
+        when(notificationRepository.findByUserIdAndType(userId, NotificationType.UPCOMING_PAYMENT))
+                .thenReturn(Arrays.asList(upcomingPayment1, upcomingPayment2));
+
+        List<Notification> upcomingPayments = notificationService.findByUserIdAndType(userId, NotificationType.UPCOMING_PAYMENT);
+
+        assertEquals(2, upcomingPayments.size());
+        assertTrue(upcomingPayments.stream().allMatch(n -> n.getType() == NotificationType.UPCOMING_PAYMENT));
+        assertTrue(upcomingPayments.stream().allMatch(n -> n.getUserId().equals(userId)));
+
+        verify(notificationRepository, times(1)).findByUserIdAndType(userId, NotificationType.UPCOMING_PAYMENT);
+    }
+
+    @Test
     @DisplayName("Получение общего количества уведомлений")
     void testGetTotalCount() {
         when(notificationRepository.count()).thenReturn(5L);

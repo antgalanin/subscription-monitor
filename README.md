@@ -109,7 +109,7 @@
 - Связь @ManyToOne с Payment
 
 **Notification** (НОВАЯ) - уведомления о списаниях
-- Поля: `userId`, `subscriptionId`, `notificationDate`, `type` (UPCOMING_PAYMENT), `isSent`, `message`
+- Поля: `userId`, `subscriptionId`, `notificationDate`, `type` (UPCOMING_PAYMENT, PAYMENT_SUCCESSFUL), `isSent`, `message`
 
 ### REST API
 

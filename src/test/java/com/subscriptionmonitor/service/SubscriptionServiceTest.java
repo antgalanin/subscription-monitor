@@ -219,6 +219,25 @@ class SubscriptionServiceTest {
     }
 
     @Test
+    @DisplayName("Деактивация подписки")
+    void testDeactivateSubscription_Success() {
+        Subscription activeSubscription = new Subscription(userId, category1Id, "Netflix", new BigDecimal("990.00"));
+        activeSubscription.setId(testSubscriptionId);
+        activeSubscription.setIsActive(true);
+
+        when(subscriptionRepository.findById(testSubscriptionId)).thenReturn(Optional.of(activeSubscription));
+        when(subscriptionRepository.save(any(Subscription.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Optional<Subscription> result = subscriptionService.deactivate(testSubscriptionId);
+
+        assertTrue(result.isPresent());
+        assertFalse(result.get().getIsActive());
+        assertEquals(testSubscriptionId, result.get().getId());
+        verify(subscriptionRepository, times(1)).findById(testSubscriptionId);
+        verify(subscriptionRepository, times(1)).save(activeSubscription);
+    }
+
+    @Test
     @DisplayName("Удаление всех подписок")
     void testDeleteAll() {
         doNothing().when(subscriptionRepository).deleteAll();

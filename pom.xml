@@ -9,7 +9,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.4.0</version>
+    <version>3.4.2</version>
     <relativePath/>
   </parent>
 
@@ -25,13 +25,6 @@
     <java.version>24</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
-
-  <repositories>
-    <repository>
-      <id>projectlombok.org</id>
-      <url>https://projectlombok.org/edge-releases</url>
-    </repository>
-  </repositories>
 
   <dependencies>
     <!-- Spring Boot Web -->
@@ -63,7 +56,7 @@
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>edge-SNAPSHOT</version>
+      <version>1.18.42</version>
       <optional>true</optional>
     </dependency>
 
@@ -88,7 +81,7 @@
             <path>
               <groupId>org.projectlombok</groupId>
               <artifactId>lombok</artifactId>
-              <version>edge-SNAPSHOT</version>
+              <version>1.18.42</version>
             </path>
           </annotationProcessorPaths>
         </configuration>
@@ -99,6 +92,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
         <configuration>
+          <jvmArguments>--enable-native-access=ALL-UNNAMED</jvmArguments>
           <excludes>
             <exclude>
               <groupId>org.projectlombok</groupId>

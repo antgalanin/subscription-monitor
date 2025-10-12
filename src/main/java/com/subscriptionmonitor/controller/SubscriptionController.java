@@ -92,6 +92,13 @@ public class SubscriptionController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PatchMapping("/{id}/deactivate")
+    public ResponseEntity<SubscriptionDto> deactivate(@PathVariable UUID id) {
+        return subscriptionService.deactivate(id)
+                .map(subscription -> ResponseEntity.ok(toDto(subscription)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         subscriptionService.delete(id);

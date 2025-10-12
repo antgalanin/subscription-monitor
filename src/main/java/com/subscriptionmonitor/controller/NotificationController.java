@@ -2,6 +2,7 @@ package com.subscriptionmonitor.controller;
 
 import com.subscriptionmonitor.dto.NotificationDto;
 import com.subscriptionmonitor.model.entity.Notification;
+import com.subscriptionmonitor.model.enums.NotificationType;
 import com.subscriptionmonitor.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -62,6 +63,16 @@ public class NotificationController {
     @GetMapping("/sent/{isSent}")
     public ResponseEntity<List<NotificationDto>> getBySentStatus(@PathVariable Boolean isSent) {
         List<NotificationDto> notifications = notificationService.findByIsSent(isSent).stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(notifications);
+    }
+
+    @GetMapping("/user/{userId}/type/{type}")
+    public ResponseEntity<List<NotificationDto>> getByUserIdAndType(
+            @PathVariable UUID userId,
+            @PathVariable NotificationType type) {
+        List<NotificationDto> notifications = notificationService.findByUserIdAndType(userId, type).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(notifications);
