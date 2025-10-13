@@ -1,5 +1,6 @@
 package com.subscriptionmonitor.service;
 
+import com.subscriptionmonitor.exception.SubscriptionNotFoundException;
 import com.subscriptionmonitor.model.entity.Subscription;
 import com.subscriptionmonitor.repository.SubscriptionRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,7 +55,7 @@ class SubscriptionServiceTest {
 
     @Test
     @DisplayName("Создание подписки с корректными данными")
-    void testCreateSubscription_Success() {
+    void testCreateSubscription_Success() throws Exception {
         when(subscriptionRepository.save(any(Subscription.class))).thenReturn(testSubscription);
 
         Subscription created = subscriptionService.create(testSubscription);
@@ -71,14 +72,14 @@ class SubscriptionServiceTest {
 
     @Test
     @DisplayName("Поиск подписки по ID")
-    void testFindById_Success() {
+    void testFindById_Success() throws Exception {
         when(subscriptionRepository.findById(testSubscriptionId)).thenReturn(Optional.of(testSubscription));
 
-        Optional<Subscription> found = subscriptionService.findById(testSubscriptionId);
+        Subscription found = subscriptionService.findById(testSubscriptionId);
 
-        assertTrue(found.isPresent());
-        assertEquals(testSubscriptionId, found.get().getId());
-        assertEquals("Netflix", found.get().getName());
+        assertNotNull(found);
+        assertEquals(testSubscriptionId, found.getId());
+        assertEquals("Netflix", found.getName());
 
         verify(subscriptionRepository, times(1)).findById(testSubscriptionId);
     }
@@ -89,9 +90,9 @@ class SubscriptionServiceTest {
         UUID nonExistentId = UUID.randomUUID();
         when(subscriptionRepository.findById(nonExistentId)).thenReturn(Optional.empty());
 
-        Optional<Subscription> found = subscriptionService.findById(nonExistentId);
-
-        assertFalse(found.isPresent());
+        assertThrows(SubscriptionNotFoundException.class, () -> {
+            subscriptionService.findById(nonExistentId);
+        });
 
         verify(subscriptionRepository, times(1)).findById(nonExistentId);
     }
@@ -193,10 +194,11 @@ class SubscriptionServiceTest {
 
     @Test
     @DisplayName("Обновление подписки")
-    void testUpdateSubscription_Success() {
+    void testUpdateSubscription_Success() throws Exception {
         Subscription updatedSubscription = new Subscription(userId, category2Id, "Netflix Premium", new BigDecimal("1290.00"));
         updatedSubscription.setId(testSubscriptionId);
 
+        when(subscriptionRepository.existsById(testSubscriptionId)).thenReturn(true);
         when(subscriptionRepository.save(any(Subscription.class))).thenReturn(updatedSubscription);
 
         Subscription updated = subscriptionService.update(updatedSubscription);
@@ -210,7 +212,8 @@ class SubscriptionServiceTest {
 
     @Test
     @DisplayName("Удаление подписки")
-    void testDeleteSubscription_Success() {
+    void testDeleteSubscription_Success() throws Exception {
+        when(subscriptionRepository.existsById(testSubscriptionId)).thenReturn(true);
         doNothing().when(subscriptionRepository).deleteById(testSubscriptionId);
 
         subscriptionService.delete(testSubscriptionId);
@@ -220,7 +223,7 @@ class SubscriptionServiceTest {
 
     @Test
     @DisplayName("Деактивация подписки")
-    void testDeactivateSubscription_Success() {
+    void testDeactivateSubscription_Success() throws Exception {
         Subscription activeSubscription = new Subscription(userId, category1Id, "Netflix", new BigDecimal("990.00"));
         activeSubscription.setId(testSubscriptionId);
         activeSubscription.setIsActive(true);
@@ -228,11 +231,11 @@ class SubscriptionServiceTest {
         when(subscriptionRepository.findById(testSubscriptionId)).thenReturn(Optional.of(activeSubscription));
         when(subscriptionRepository.save(any(Subscription.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Optional<Subscription> result = subscriptionService.deactivate(testSubscriptionId);
+        Subscription result = subscriptionService.deactivate(testSubscriptionId);
 
-        assertTrue(result.isPresent());
-        assertFalse(result.get().getIsActive());
-        assertEquals(testSubscriptionId, result.get().getId());
+        assertNotNull(result);
+        assertFalse(result.getIsActive());
+        assertEquals(testSubscriptionId, result.getId());
         verify(subscriptionRepository, times(1)).findById(testSubscriptionId);
         verify(subscriptionRepository, times(1)).save(activeSubscription);
     }

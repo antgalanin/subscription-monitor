@@ -23,17 +23,16 @@ public class NotificationController {
     private final NotificationService notificationService;
 
     @PostMapping
-    public ResponseEntity<NotificationDto> create(@RequestBody NotificationDto notificationDto) {
+    public ResponseEntity<NotificationDto> create(@RequestBody NotificationDto notificationDto) throws Exception {
         Notification notification = toEntity(notificationDto);
         Notification created = notificationService.create(notification);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<NotificationDto> getById(@PathVariable UUID id) {
-        return notificationService.findById(id)
-                .map(notification -> ResponseEntity.ok(toDto(notification)))
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<NotificationDto> getById(@PathVariable UUID id) throws Exception {
+        Notification notification = notificationService.findById(id);
+        return ResponseEntity.ok(toDto(notification));
     }
 
     @GetMapping
@@ -87,25 +86,22 @@ public class NotificationController {
     }
 
     @PatchMapping("/{id}/mark-sent")
-    public ResponseEntity<Void> markAsSent(@PathVariable UUID id) {
+    public ResponseEntity<Void> markAsSent(@PathVariable UUID id) throws Exception {
         notificationService.markAsSent(id);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<NotificationDto> update(@PathVariable UUID id, @RequestBody NotificationDto notificationDto) {
-        return notificationService.findById(id)
-                .map(existing -> {
-                    notificationDto.setId(id);
-                    Notification notification = toEntity(notificationDto);
-                    Notification updated = notificationService.update(notification);
-                    return ResponseEntity.ok(toDto(updated));
-                })
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<NotificationDto> update(@PathVariable UUID id, @RequestBody NotificationDto notificationDto) throws Exception {
+        Notification existing = notificationService.findById(id);
+        notificationDto.setId(id);
+        Notification notification = toEntity(notificationDto);
+        Notification updated = notificationService.update(notification);
+        return ResponseEntity.ok(toDto(updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) throws Exception {
         notificationService.delete(id);
         return ResponseEntity.noContent().build();
     }

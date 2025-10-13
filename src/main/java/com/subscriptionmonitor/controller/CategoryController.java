@@ -21,17 +21,16 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     @PostMapping
-    public ResponseEntity<CategoryDto> create(@RequestBody CategoryDto categoryDto) {
+    public ResponseEntity<CategoryDto> create(@RequestBody CategoryDto categoryDto) throws Exception {
         Category category = toEntity(categoryDto);
         Category created = categoryService.create(category);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CategoryDto> getById(@PathVariable UUID id) {
-        return categoryService.findById(id)
-                .map(category -> ResponseEntity.ok(toDto(category)))
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<CategoryDto> getById(@PathVariable UUID id) throws Exception {
+        Category category = categoryService.findById(id);
+        return ResponseEntity.ok(toDto(category));
     }
 
     @GetMapping
@@ -69,19 +68,15 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CategoryDto> update(@PathVariable UUID id, @RequestBody CategoryDto categoryDto) {
-        return categoryService.findById(id)
-                .map(existing -> {
-                    categoryDto.setId(id);
-                    Category category = toEntity(categoryDto);
-                    Category updated = categoryService.update(category);
-                    return ResponseEntity.ok(toDto(updated));
-                })
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<CategoryDto> update(@PathVariable UUID id, @RequestBody CategoryDto categoryDto) throws Exception {
+        categoryDto.setId(id);
+        Category category = toEntity(categoryDto);
+        Category updated = categoryService.update(category);
+        return ResponseEntity.ok(toDto(updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) throws Exception {
         categoryService.delete(id);
         return ResponseEntity.noContent().build();
     }

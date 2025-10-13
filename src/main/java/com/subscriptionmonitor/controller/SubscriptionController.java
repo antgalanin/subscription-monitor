@@ -23,17 +23,16 @@ public class SubscriptionController {
     private final PaymentService paymentService;
 
     @PostMapping
-    public ResponseEntity<SubscriptionDto> create(@RequestBody SubscriptionDto subscriptionDto) {
+    public ResponseEntity<SubscriptionDto> create(@RequestBody SubscriptionDto subscriptionDto) throws Exception {
         Subscription subscription = toEntity(subscriptionDto);
         Subscription created = subscriptionService.create(subscription);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SubscriptionDto> getById(@PathVariable UUID id) {
-        return subscriptionService.findById(id)
-                .map(subscription -> ResponseEntity.ok(toDto(subscription)))
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<SubscriptionDto> getById(@PathVariable UUID id) throws Exception {
+        Subscription subscription = subscriptionService.findById(id);
+        return ResponseEntity.ok(toDto(subscription));
     }
 
     @GetMapping
@@ -81,26 +80,22 @@ public class SubscriptionController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<SubscriptionDto> update(@PathVariable UUID id, @RequestBody SubscriptionDto subscriptionDto) {
-        return subscriptionService.findById(id)
-                .map(existing -> {
-                    subscriptionDto.setId(id);
-                    Subscription subscription = toEntity(subscriptionDto);
-                    Subscription updated = subscriptionService.update(subscription);
-                    return ResponseEntity.ok(toDto(updated));
-                })
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<SubscriptionDto> update(@PathVariable UUID id, @RequestBody SubscriptionDto subscriptionDto) throws Exception {
+        Subscription existing = subscriptionService.findById(id);
+        subscriptionDto.setId(id);
+        Subscription subscription = toEntity(subscriptionDto);
+        Subscription updated = subscriptionService.update(subscription);
+        return ResponseEntity.ok(toDto(updated));
     }
 
     @PatchMapping("/{id}/deactivate")
-    public ResponseEntity<SubscriptionDto> deactivate(@PathVariable UUID id) {
-        return subscriptionService.deactivate(id)
-                .map(subscription -> ResponseEntity.ok(toDto(subscription)))
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<SubscriptionDto> deactivate(@PathVariable UUID id) throws Exception {
+        Subscription subscription = subscriptionService.deactivate(id);
+        return ResponseEntity.ok(toDto(subscription));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) throws Exception {
         subscriptionService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -117,7 +112,7 @@ public class SubscriptionController {
         );
     }
 
-    private Subscription toEntity(SubscriptionDto dto) {
+    private Subscription toEntity(SubscriptionDto dto) throws Exception {
         Subscription subscription = new Subscription();
         subscription.setId(dto.getId());
         subscription.setName(dto.getName());
@@ -127,8 +122,7 @@ public class SubscriptionController {
         subscription.setCreatedAt(dto.getCreatedAt());
 
         if (dto.getPaymentId() != null) {
-            Payment payment = paymentService.findById(dto.getPaymentId())
-                    .orElseThrow(() -> new RuntimeException("Payment not found: " + dto.getPaymentId()));
+            Payment payment = paymentService.findById(dto.getPaymentId());
             subscription.setPayment(payment);
         }
 

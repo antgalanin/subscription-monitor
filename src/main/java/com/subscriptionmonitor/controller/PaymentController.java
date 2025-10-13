@@ -23,17 +23,16 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @PostMapping
-    public ResponseEntity<PaymentDto> create(@RequestBody PaymentDto paymentDto) {
+    public ResponseEntity<PaymentDto> create(@RequestBody PaymentDto paymentDto) throws Exception {
         Payment payment = toEntity(paymentDto);
         Payment created = paymentService.create(payment);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PaymentDto> getById(@PathVariable UUID id) {
-        return paymentService.findById(id)
-                .map(payment -> ResponseEntity.ok(toDto(payment)))
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<PaymentDto> getById(@PathVariable UUID id) throws Exception {
+        Payment payment = paymentService.findById(id);
+        return ResponseEntity.ok(toDto(payment));
     }
 
     @GetMapping
@@ -72,19 +71,16 @@ public class PaymentController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PaymentDto> update(@PathVariable UUID id, @RequestBody PaymentDto paymentDto) {
-        return paymentService.findById(id)
-                .map(existing -> {
-                    paymentDto.setId(id);
-                    Payment payment = toEntity(paymentDto);
-                    Payment updated = paymentService.update(payment);
-                    return ResponseEntity.ok(toDto(updated));
-                })
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<PaymentDto> update(@PathVariable UUID id, @RequestBody PaymentDto paymentDto) throws Exception {
+        Payment existing = paymentService.findById(id);
+        paymentDto.setId(id);
+        Payment payment = toEntity(paymentDto);
+        Payment updated = paymentService.update(payment);
+        return ResponseEntity.ok(toDto(updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) throws Exception {
         paymentService.delete(id);
         return ResponseEntity.noContent().build();
     }

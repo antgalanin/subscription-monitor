@@ -21,17 +21,16 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping
-    public ResponseEntity<UserDto> create(@RequestBody UserDto userDto) {
+    public ResponseEntity<UserDto> create(@RequestBody UserDto userDto) throws Exception {
         User user = toEntity(userDto);
         User created = userService.create(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserDto> getById(@PathVariable UUID id) {
-        return userService.findById(id)
-                .map(user -> ResponseEntity.ok(toDto(user)))
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<UserDto> getById(@PathVariable UUID id) throws Exception {
+        User user = userService.findById(id);
+        return ResponseEntity.ok(toDto(user));
     }
 
     @GetMapping
@@ -43,17 +42,15 @@ public class UserController {
     }
 
     @GetMapping("/username/{username}")
-    public ResponseEntity<UserDto> getByUsername(@PathVariable String username) {
-        return userService.findByUsername(username)
-                .map(user -> ResponseEntity.ok(toDto(user)))
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<UserDto> getByUsername(@PathVariable String username) throws Exception {
+        User user = userService.findByUsername(username);
+        return ResponseEntity.ok(toDto(user));
     }
 
     @GetMapping("/email/{email}")
-    public ResponseEntity<UserDto> getByEmail(@PathVariable String email) {
-        return userService.findByEmail(email)
-                .map(user -> ResponseEntity.ok(toDto(user)))
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<UserDto> getByEmail(@PathVariable String email) throws Exception {
+        User user = userService.findByEmail(email);
+        return ResponseEntity.ok(toDto(user));
     }
 
     @GetMapping("/role/{role}")
@@ -65,19 +62,15 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<UserDto> update(@PathVariable UUID id, @RequestBody UserDto userDto) {
-        return userService.findById(id)
-                .map(existing -> {
-                    userDto.setId(id);
-                    User user = toEntity(userDto);
-                    User updated = userService.update(user);
-                    return ResponseEntity.ok(toDto(updated));
-                })
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<UserDto> update(@PathVariable UUID id, @RequestBody UserDto userDto) throws Exception {
+        userDto.setId(id);
+        User user = toEntity(userDto);
+        User updated = userService.update(user);
+        return ResponseEntity.ok(toDto(updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) throws Exception {
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }
