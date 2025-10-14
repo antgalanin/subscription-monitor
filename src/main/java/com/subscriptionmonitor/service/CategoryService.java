@@ -25,7 +25,9 @@ public class CategoryService {
     public Category create(Category category) throws CategoryValidationException, LegacyCategoryException {
         log.debug("Creating category: {}", category.getName());
         validateCategory(category);
-        checkLegacyType(category);
+        if (category.getType() == CategoryType.LEGACY) {
+            throw new LegacyCategoryException(category.getName());
+        }
         return categoryRepository.save(category);
     }
 
@@ -109,11 +111,10 @@ public class CategoryService {
     }
 
     private void checkLegacyType(Category category) throws LegacyCategoryException {
-        if (category.getType() == CategoryType.LEGACY) {
-            if (category.getId() != null) {
+        if (category.getId() != null) {
+            Category existing = categoryRepository.findById(category.getId()).orElse(null);
+            if (existing != null && existing.getType() == CategoryType.LEGACY) {
                 throw new LegacyCategoryException(category.getId());
-            } else {
-                throw new LegacyCategoryException(category.getName());
             }
         }
     }
