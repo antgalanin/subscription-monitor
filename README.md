@@ -14,11 +14,13 @@
 - Показывать, какие подписки скоро спишут деньги
 - Работать с несколькими пользователями одновременно
 
-**Лабораторная работа №1 "Базовые типы данных"**
+---
+
+## Лабораторная работа №1 "Базовые типы данных"
 
 ## Основные классы и их назначение
 
-### Модели данных (Entity)
+### Модели данных
 
 **BaseEntity** - базовый класс для всех сущностей
 - Хранит общие поля: `id`, `uuid`, `createdAt`
@@ -79,3 +81,57 @@
 4. Поиск и фильтрацию данных
 5. Расчет месячных трат
 6. Многопоточное добавление данных
+
+---
+
+## Лабораторная работа №2 "Создание собственных классов"
+
+### Модели данных
+
+**BaseEntity** - базовый класс для всех сущностей
+- Поля: `id` (UUID), `createdAt` (LocalDateTime)
+- UUID генерируется автоматически через @PrePersist
+
+**User** - пользователи системы
+- Поля: `username`, `email`, `password`, `role` (USER/ADMIN), `notificationDays`
+- Уникальные constraints на username и email
+
+**Category** - категории подписок
+- Поля: `name`, `type` (SYSTEM/CUSTOM), `createdByUserId`
+- Системные и пользовательские категории
+
+**Payment** - платежная информация
+- Поля: `cost` (BigDecimal), `currency` (RUB/USD/EUR), `billingPeriodDays`, `nextBillingDate`
+
+
+**Subscription** - подписки пользователей
+- Поля: `userId`, `categoryId`, `name`, `payment` (@ManyToOne), `isActive`
+- Связь @ManyToOne с Payment
+
+**Notification** (НОВАЯ) - уведомления о списаниях
+- Поля: `userId`, `subscriptionId`, `notificationDate`, `type` (UPCOMING_PAYMENT, PAYMENT_SUCCESSFUL), `isSent`, `message`
+
+### REST API
+
+Архитектура: `Controller → Service → Repository → PostgreSQL`
+
+**User API** (`/api/users`)
+- CRUD операции
+- Фильтрация по роли (USER/ADMIN)
+
+**Category API** (`/api/categories`)
+- CRUD операции
+- Фильтрация по типу и создателю
+
+**Payment API** (`/api/payments`)
+- CRUD операции
+- Фильтрация по валюте и дате списания
+
+**Subscription API** (`/api/subscriptions`)
+- CRUD операции
+- Фильтрация по пользователю, категории, активности
+
+**Notification API** (`/api/notifications`)
+- CRUD операции
+- Получение pending уведомлений
+- Отметка как отправленные

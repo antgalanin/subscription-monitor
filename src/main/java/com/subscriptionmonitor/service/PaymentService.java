@@ -2,141 +2,72 @@ package com.subscriptionmonitor.service;
 
 import com.subscriptionmonitor.model.entity.Payment;
 import com.subscriptionmonitor.model.enums.Currency;
-import com.subscriptionmonitor.storage.DataStorage;
+import com.subscriptionmonitor.repository.PaymentRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
-public class PaymentService implements CrudService<Payment, Long> {
-    private final DataStorage storage;
+@Service
+@Transactional
+@RequiredArgsConstructor
+@Slf4j
+public class PaymentService {
 
-    public PaymentService() {
-        this.storage = DataStorage.getInstance();
-    }
+    private final PaymentRepository paymentRepository;
 
-    @Override
     public Payment create(Payment payment) {
-        if (payment == null) {
-            throw new IllegalArgumentException("Payment cannot be null");
-        }
-
-        validatePayment(payment);
-
-        Long id = storage.generatePaymentId();
-        payment.setId(id);
-        storage.getPayments().put(id, payment);
-        return payment;
+        log.debug("Creating payment with cost: {}", payment.getCost());
+        return paymentRepository.save(payment);
     }
 
-    @Override
-    public Optional<Payment> findById(Long id) {
-        if (id == null) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(storage.getPayments().get(id));
+    @Transactional(readOnly = true)
+    public Optional<Payment> findById(UUID id) {
+        log.debug("Finding payment by id: {}", id);
+        return paymentRepository.findById(id);
     }
 
-    @Override
+    @Transactional(readOnly = true)
     public List<Payment> findAll() {
-        return storage.getPayments().values().stream().collect(Collectors.toList());
+        log.debug("Finding all payments");
+        return paymentRepository.findAll();
     }
 
-    @Override
-    public Payment update(Payment payment) {
-        if (payment == null || payment.getId() == null) {
-            throw new IllegalArgumentException("Payment and payment ID cannot be null");
-        }
-
-        if (!storage.getPayments().containsKey(payment.getId())) {
-            throw new IllegalArgumentException("Payment not found with ID: " + payment.getId());
-        }
-
-        validatePayment(payment);
-        storage.getPayments().put(payment.getId(), payment);
-        return payment;
-    }
-
-    @Override
-    public boolean deleteById(Long id) {
-        if (id == null) {
-            return false;
-        }
-        return storage.getPayments().remove(id) != null;
-    }
-
+    @Transactional(readOnly = true)
     public List<Payment> findByCurrency(Currency currency) {
-        if (currency == null) {
-            return Collections.emptyList();
-        }
-
-        return storage.getPayments().values().stream()
-                .filter(payment -> currency.equals(payment.getCurrency()))
-                .collect(Collectors.toList());
+        log.debug("Finding payments by currency: {}", currency);
+        return paymentRepository.findByCurrency(currency);
     }
 
-    public List<Payment> findByDateRange(LocalDate startDate, LocalDate endDate) {
-        if (startDate == null || endDate == null) {
-            return Collections.emptyList();
-        }
-
-        return storage.getPayments().values().stream()
-                .filter(payment -> payment.getNextBillingDate() != null
-                                && !payment.getNextBillingDate().isBefore(startDate)
-                                && !payment.getNextBillingDate().isAfter(endDate))
-                .collect(Collectors.toList());
+    @Transactional(readOnly = true)
+    public List<Payment> findByNextBillingDateBetween(LocalDate startDate, LocalDate endDate) {
+        log.debug("Finding payments between {} and {}", startDate, endDate);
+        return paymentRepository.findByNextBillingDateBetween(startDate, endDate);
     }
 
-    public BigDecimal calculateTotalByCurrency(Currency currency) {
-        if (currency == null) {
-            return BigDecimal.ZERO;
-        }
-
-        return storage.getPayments().values().stream()
-                .filter(payment -> currency.equals(payment.getCurrency()))
-                .map(Payment::getCost)
-                .filter(cost -> cost != null)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    @Transactional(readOnly = true)
+    public List<Payment> findByNextBillingDateBefore(LocalDate date) {
+        log.debug("Finding payments before date: {}", date);
+        return paymentRepository.findByNextBillingDateBefore(date);
     }
 
-    public int getTotalCount() {
-        return storage.getTotalPaymentsCount();
+    public Payment update(Payment payment) {
+        log.debug("Updating payment: {}", payment.getId());
+        return paymentRepository.save(payment);
     }
 
-    public Optional<Payment> findByUuid(UUID uuid) {
-        if (uuid == null) {
-            return Optional.empty();
-        }
-
-        return storage.getPayments().values().stream()
-                .filter(payment -> uuid.equals(payment.getUuid()))
-                .findFirst();
+    public void delete(UUID id) {
+        log.debug("Deleting payment: {}", id);
+        paymentRepository.deleteById(id);
     }
 
-    public boolean deleteByUuid(UUID uuid) {
-        Optional<Payment> payment = findByUuid(uuid);
-        if (payment.isPresent()) {
-            storage.getPayments().remove(payment.get().getId());
-            return true;
-        }
-        return false;
-    }
-
-    private void validatePayment(Payment payment) {
-        if (payment.getCost() == null || payment.getCost().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Cost cannot be null or negative");
-        }
-
-        if (payment.getBillingPeriodDays() == null || payment.getBillingPeriodDays() <= 0) {
-            throw new IllegalArgumentException("Billing period must be positive");
-        }
-
-        if (payment.getCurrency() == null) {
-            throw new IllegalArgumentException("Currency cannot be null");
-        }
+    public void deleteAll() {
+        log.debug("Deleting all payments");
+        paymentRepository.deleteAll();
     }
 }

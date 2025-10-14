@@ -2,201 +2,207 @@ package com.subscriptionmonitor.service;
 
 import com.subscriptionmonitor.model.entity.Payment;
 import com.subscriptionmonitor.model.enums.Currency;
-import com.subscriptionmonitor.storage.DataStorage;
-
+import com.subscriptionmonitor.repository.PaymentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.context.SpringBootTest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("PaymentService Tests")
 class PaymentServiceTest {
 
+    @Mock
+    private PaymentRepository paymentRepository;
+
+    @InjectMocks
     private PaymentService paymentService;
-    private DataStorage storage;
+
+    private Payment testPayment;
+    private UUID testPaymentId;
+    private UUID payment1Id;
+    private UUID payment2Id;
 
     @BeforeEach
     void setUp() {
-        storage = DataStorage.getInstance();
-        storage.clearAll();
-        paymentService = new PaymentService();
+        testPaymentId = UUID.randomUUID();
+        payment1Id = UUID.randomUUID();
+        payment2Id = UUID.randomUUID();
+
+        testPayment = new Payment(new BigDecimal("999.99"), Currency.RUB, 30, LocalDate.now().plusDays(30));
+        testPayment.setId(testPaymentId);
     }
 
     @Test
     @DisplayName("Создание платежа с корректными данными")
     void testCreatePayment_Success() {
-        Payment payment = new Payment(new BigDecimal("100"), Currency.USD, 30, LocalDate.now().plusDays(30));
+        when(paymentRepository.save(any(Payment.class))).thenReturn(testPayment);
 
-        Payment created = paymentService.create(payment);
+        Payment created = paymentService.create(testPayment);
 
         assertNotNull(created);
-        assertNotNull(created.getUuid());
-        assertEquals(new BigDecimal("100"), created.getCost());
-        assertEquals(Currency.USD, created.getCurrency());
+        assertEquals(testPaymentId, created.getId());
+        assertEquals(new BigDecimal("999.99"), created.getCost());
+        assertEquals(Currency.RUB, created.getCurrency());
         assertEquals(30, created.getBillingPeriodDays());
-        assertEquals(1, paymentService.getTotalCount());
-    }
 
-    @Test
-    @DisplayName("Создание платежа с null")
-    void testCreatePayment_Null() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> paymentService.create(null));
-
-        assertEquals("Payment cannot be null", exception.getMessage());
-        assertEquals(0, paymentService.getTotalCount());
-    }
-
-    @Test
-    @DisplayName("Создание платежа с отрицательной стоимостью")
-    void testCreatePayment_NegativeCost() {
-        Payment payment = new Payment(new BigDecimal("-100"), Currency.RUB, 30, LocalDate.now());
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> paymentService.create(payment));
-
-        assertTrue(exception.getMessage().contains("Cost cannot be null or negative"));
-        assertEquals(0, paymentService.getTotalCount());
+        verify(paymentRepository, times(1)).save(any(Payment.class));
     }
 
     @Test
     @DisplayName("Поиск платежа по ID")
     void testFindById_Success() {
-        Payment payment = new Payment(new BigDecimal("200"), Currency.EUR, 30, LocalDate.now());
-        Payment created = paymentService.create(payment);
+        when(paymentRepository.findById(testPaymentId)).thenReturn(Optional.of(testPayment));
 
-        Optional<Payment> found = paymentService.findById(created.getId());
-
-        assertTrue(found.isPresent());
-        assertEquals(created.getId(), found.get().getId());
-        assertEquals(new BigDecimal("200"), found.get().getCost());
-    }
-
-    @Test
-    @DisplayName("Поиск платежа по UUID")
-    void testFindByUuid_Success() {
-        Payment payment = new Payment(new BigDecimal("200"), Currency.EUR, 30, LocalDate.now());
-        Payment created = paymentService.create(payment);
-
-        Optional<Payment> found = paymentService.findByUuid(created.getUuid());
+        Optional<Payment> found = paymentService.findById(testPaymentId);
 
         assertTrue(found.isPresent());
-        assertEquals(created.getUuid(), found.get().getUuid());
-        assertEquals(new BigDecimal("200"), found.get().getCost());
+        assertEquals(testPaymentId, found.get().getId());
+        assertEquals(new BigDecimal("999.99"), found.get().getCost());
+
+        verify(paymentRepository, times(1)).findById(testPaymentId);
     }
 
     @Test
     @DisplayName("Поиск платежа по несуществующему ID")
     void testFindById_NotFound() {
-        Optional<Payment> found = paymentService.findById(999L);
+        UUID nonExistentId = UUID.randomUUID();
+        when(paymentRepository.findById(nonExistentId)).thenReturn(Optional.empty());
+
+        Optional<Payment> found = paymentService.findById(nonExistentId);
 
         assertFalse(found.isPresent());
-    }
 
-    @Test
-    @DisplayName("Поиск платежа по несуществующему UUID")
-    void testFindByUuid_NotFound() {
-        Optional<Payment> found = paymentService.findByUuid(UUID.randomUUID());
-
-        assertFalse(found.isPresent());
+        verify(paymentRepository, times(1)).findById(nonExistentId);
     }
 
     @Test
     @DisplayName("Получение всех платежей")
     void testFindAll() {
-        Payment payment1 = new Payment(new BigDecimal("100"), Currency.RUB, 30, LocalDate.now());
-        Payment payment2 = new Payment(new BigDecimal("50"), Currency.USD, 7, LocalDate.now());
+        Payment payment1 = new Payment(new BigDecimal("100.00"), Currency.RUB, 30, LocalDate.now());
+        payment1.setId(payment1Id);
+        Payment payment2 = new Payment(new BigDecimal("50.00"), Currency.USD, 7, LocalDate.now());
+        payment2.setId(payment2Id);
 
-        paymentService.create(payment1);
-        paymentService.create(payment2);
+        when(paymentRepository.findAll()).thenReturn(Arrays.asList(payment1, payment2));
 
         List<Payment> payments = paymentService.findAll();
 
         assertEquals(2, payments.size());
-    }
+        assertTrue(payments.stream().anyMatch(p -> p.getCost().equals(new BigDecimal("100.00"))));
+        assertTrue(payments.stream().anyMatch(p -> p.getCost().equals(new BigDecimal("50.00"))));
 
-    @Test
-    @DisplayName("Обновление платежа")
-    void testUpdatePayment_Success() {
-        Payment payment = new Payment(new BigDecimal("100"), Currency.RUB, 30, LocalDate.now());
-        Payment created = paymentService.create(payment);
-
-        created.setCost(new BigDecimal("150"));
-        created.setCurrency(Currency.USD);
-
-        Payment updated = paymentService.update(created);
-
-        assertEquals(new BigDecimal("150"), updated.getCost());
-        assertEquals(Currency.USD, updated.getCurrency());
-        assertEquals(created.getUuid(), updated.getUuid());
-    }
-
-    @Test
-    @DisplayName("Удаление платежа по ID")
-    void testDeletePaymentById_Success() {
-        Payment payment = new Payment(new BigDecimal("100"), Currency.RUB, 30, LocalDate.now());
-        Payment created = paymentService.create(payment);
-
-        boolean deleted = paymentService.deleteById(created.getId());
-
-        assertTrue(deleted);
-        assertEquals(0, paymentService.getTotalCount());
-        assertFalse(paymentService.findById(created.getId()).isPresent());
-    }
-
-    @Test
-    @DisplayName("Удаление платежа по UUID")
-    void testDeletePaymentByUuid_Success() {
-        Payment payment = new Payment(new BigDecimal("100"), Currency.RUB, 30, LocalDate.now());
-        Payment created = paymentService.create(payment);
-
-        boolean deleted = paymentService.deleteByUuid(created.getUuid());
-
-        assertTrue(deleted);
-        assertEquals(0, paymentService.getTotalCount());
-        assertFalse(paymentService.findByUuid(created.getUuid()).isPresent());
+        verify(paymentRepository, times(1)).findAll();
     }
 
     @Test
     @DisplayName("Поиск платежей по валюте")
     void testFindByCurrency() {
-        Payment payment1 = new Payment(new BigDecimal("100"), Currency.RUB, 30, LocalDate.now());
-        Payment payment2 = new Payment(new BigDecimal("50"), Currency.USD, 30, LocalDate.now());
-        Payment payment3 = new Payment(new BigDecimal("75"), Currency.RUB, 30, LocalDate.now());
+        Payment payment1 = new Payment(new BigDecimal("100.00"), Currency.RUB, 30, LocalDate.now());
+        payment1.setId(payment1Id);
+        Payment payment2 = new Payment(new BigDecimal("75.00"), Currency.RUB, 30, LocalDate.now());
+        payment2.setId(payment2Id);
 
-        paymentService.create(payment1);
-        paymentService.create(payment2);
-        paymentService.create(payment3);
+        when(paymentRepository.findByCurrency(Currency.RUB))
+                .thenReturn(Arrays.asList(payment1, payment2));
 
         List<Payment> rubPayments = paymentService.findByCurrency(Currency.RUB);
-        List<Payment> usdPayments = paymentService.findByCurrency(Currency.USD);
 
         assertEquals(2, rubPayments.size());
-        assertEquals(1, usdPayments.size());
+        assertTrue(rubPayments.stream().allMatch(p -> p.getCurrency() == Currency.RUB));
+
+        verify(paymentRepository, times(1)).findByCurrency(Currency.RUB);
     }
 
     @Test
-    @DisplayName("Расчет общей суммы по валюте")
-    void testCalculateTotalByCurrency() {
-        Payment payment1 = new Payment(new BigDecimal("100"), Currency.RUB, 30, LocalDate.now());
-        Payment payment2 = new Payment(new BigDecimal("50"), Currency.USD, 30, LocalDate.now());
-        Payment payment3 = new Payment(new BigDecimal("75"), Currency.RUB, 30, LocalDate.now());
+    @DisplayName("Поиск платежей по диапазону дат следующего списания")
+    void testFindByNextBillingDateBetween() {
+        LocalDate startDate = LocalDate.now();
+        LocalDate endDate = LocalDate.now().plusDays(7);
 
-        paymentService.create(payment1);
-        paymentService.create(payment2);
-        paymentService.create(payment3);
+        Payment payment1 = new Payment(new BigDecimal("100.00"), Currency.RUB, 30, startDate.plusDays(3));
+        payment1.setId(payment1Id);
 
-        BigDecimal totalRub = paymentService.calculateTotalByCurrency(Currency.RUB);
-        BigDecimal totalUsd = paymentService.calculateTotalByCurrency(Currency.USD);
+        when(paymentRepository.findByNextBillingDateBetween(startDate, endDate))
+                .thenReturn(Arrays.asList(payment1));
 
-        assertEquals(new BigDecimal("175"), totalRub);
-        assertEquals(new BigDecimal("50"), totalUsd);
+        List<Payment> payments = paymentService.findByNextBillingDateBetween(startDate, endDate);
+
+        assertEquals(1, payments.size());
+        assertTrue(payments.get(0).getNextBillingDate().isAfter(startDate.minusDays(1)));
+        assertTrue(payments.get(0).getNextBillingDate().isBefore(endDate.plusDays(1)));
+
+        verify(paymentRepository, times(1)).findByNextBillingDateBetween(startDate, endDate);
+    }
+
+    @Test
+    @DisplayName("Поиск платежей до определенной даты")
+    void testFindByNextBillingDateBefore() {
+        LocalDate date = LocalDate.now().plusDays(7);
+
+        Payment payment1 = new Payment(new BigDecimal("100.00"), Currency.RUB, 30, LocalDate.now().plusDays(3));
+        payment1.setId(payment1Id);
+
+        when(paymentRepository.findByNextBillingDateBefore(date))
+                .thenReturn(Arrays.asList(payment1));
+
+        List<Payment> payments = paymentService.findByNextBillingDateBefore(date);
+
+        assertEquals(1, payments.size());
+        assertTrue(payments.get(0).getNextBillingDate().isBefore(date));
+
+        verify(paymentRepository, times(1)).findByNextBillingDateBefore(date);
+    }
+
+    @Test
+    @DisplayName("Обновление платежа")
+    void testUpdatePayment_Success() {
+        Payment updatedPayment = new Payment(new BigDecimal("1500.00"), Currency.USD, 30, LocalDate.now().plusDays(30));
+        updatedPayment.setId(testPaymentId);
+
+        when(paymentRepository.save(any(Payment.class))).thenReturn(updatedPayment);
+
+        Payment updated = paymentService.update(updatedPayment);
+
+        assertEquals(new BigDecimal("1500.00"), updated.getCost());
+        assertEquals(Currency.USD, updated.getCurrency());
+        assertEquals(testPaymentId, updated.getId());
+
+        verify(paymentRepository, times(1)).save(any(Payment.class));
+    }
+
+    @Test
+    @DisplayName("Удаление платежа")
+    void testDeletePayment_Success() {
+        doNothing().when(paymentRepository).deleteById(testPaymentId);
+
+        paymentService.delete(testPaymentId);
+
+        verify(paymentRepository, times(1)).deleteById(testPaymentId);
+    }
+
+    @Test
+    @DisplayName("Удаление всех платежей")
+    void testDeleteAll() {
+        doNothing().when(paymentRepository).deleteAll();
+
+        paymentService.deleteAll();
+
+        verify(paymentRepository, times(1)).deleteAll();
     }
 }

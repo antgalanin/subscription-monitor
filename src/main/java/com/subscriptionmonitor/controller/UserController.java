@@ -1,0 +1,116 @@
+package com.subscriptionmonitor.controller;
+
+import com.subscriptionmonitor.dto.UserDto;
+import com.subscriptionmonitor.model.entity.User;
+import com.subscriptionmonitor.model.enums.UserRole;
+import com.subscriptionmonitor.service.UserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/users")
+@RequiredArgsConstructor
+public class UserController {
+
+    private final UserService userService;
+
+    @PostMapping
+    public ResponseEntity<UserDto> create(@RequestBody UserDto userDto) {
+        User user = toEntity(userDto);
+        User created = userService.create(user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<UserDto> getById(@PathVariable UUID id) {
+        return userService.findById(id)
+                .map(user -> ResponseEntity.ok(toDto(user)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping
+    public ResponseEntity<List<UserDto>> getAll() {
+        List<UserDto> users = userService.findAll().stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(users);
+    }
+
+    @GetMapping("/username/{username}")
+    public ResponseEntity<UserDto> getByUsername(@PathVariable String username) {
+        return userService.findByUsername(username)
+                .map(user -> ResponseEntity.ok(toDto(user)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/email/{email}")
+    public ResponseEntity<UserDto> getByEmail(@PathVariable String email) {
+        return userService.findByEmail(email)
+                .map(user -> ResponseEntity.ok(toDto(user)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/role/{role}")
+    public ResponseEntity<List<UserDto>> getByRole(@PathVariable UserRole role) {
+        List<UserDto> users = userService.findByRole(role).stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(users);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<UserDto> update(@PathVariable UUID id, @RequestBody UserDto userDto) {
+        return userService.findById(id)
+                .map(existing -> {
+                    userDto.setId(id);
+                    User user = toEntity(userDto);
+                    User updated = userService.update(user);
+                    return ResponseEntity.ok(toDto(updated));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        userService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    private UserDto toDto(User user) {
+        return new UserDto(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                null, // Never return password in DTO
+                user.getRole(),
+                user.getNotificationDays(),
+                user.getCreatedAt()
+        );
+    }
+
+    private User toEntity(UserDto dto) {
+        User user = new User();
+        if (dto.getId() != null) {
+            user.setId(dto.getId());
+        }
+        user.setUsername(dto.getUsername());
+        user.setEmail(dto.getEmail());
+        user.setPassword(dto.getPassword());
+        if (dto.getRole() != null) {
+            user.setRole(dto.getRole());
+        }
+        if (dto.getNotificationDays() != null) {
+            user.setNotificationDays(dto.getNotificationDays());
+        }
+        if (dto.getCreatedAt() != null) {
+            user.setCreatedAt(dto.getCreatedAt());
+        }
+        return user;
+    }
+}

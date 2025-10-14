@@ -1,41 +1,33 @@
 package com.subscriptionmonitor.model.entity;
 
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
+@MappedSuperclass
+@Getter
+@Setter
 public abstract class BaseEntity {
-    private Long id;
-    private UUID uuid;
+
+    @Id
+    @Column(name = "id", updatable = false)
+    private UUID id;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public BaseEntity() {
-        this.uuid = UUID.randomUUID();
-        this.createdAt = LocalDateTime.now();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public UUID getUuid() {
-        return uuid;
-    }
-
-    public void setUuid(UUID uuid) {
-        this.uuid = uuid;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
+    @PrePersist
+    protected void onCreate() {
+        if (id == null) {
+            id = UUID.randomUUID();
+        }
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
     @Override
@@ -55,7 +47,6 @@ public abstract class BaseEntity {
     public String toString() {
         return getClass().getSimpleName() + "{" +
                 "id=" + id +
-                ", uuid=" + uuid +
                 ", createdAt=" + createdAt +
                 '}';
     }

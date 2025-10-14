@@ -1,20 +1,32 @@
 package com.subscriptionmonitor.model.entity;
 
 import com.subscriptionmonitor.model.enums.Currency;
+import jakarta.persistence.*;
+import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+@Entity
+@Table(name = "payments")
+@Getter
+@Setter
+@NoArgsConstructor
+@ToString(callSuper = true)
 public class Payment extends BaseEntity {
-    private BigDecimal cost;
-    private Currency currency;
-    private Integer billingPeriodDays;
-    private LocalDate nextBillingDate;
 
-    public Payment() {
-        super();
-        this.currency = Currency.RUB;
-        this.billingPeriodDays = 30;
-    }
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal cost;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 3)
+    private Currency currency = Currency.RUB;
+
+    @Column(name = "billing_period_days", nullable = false)
+    private Integer billingPeriodDays = 30;
+
+    @Column(name = "next_billing_date", nullable = false)
+    private LocalDate nextBillingDate;
 
     public Payment(BigDecimal cost) {
         super();
@@ -30,50 +42,5 @@ public class Payment extends BaseEntity {
         this.currency = currency;
         this.billingPeriodDays = billingPeriodDays;
         this.nextBillingDate = nextBillingDate;
-    }
-
-    public BigDecimal getCost() {
-        return cost;
-    }
-
-    public void setCost(BigDecimal cost) {
-        this.cost = cost;
-    }
-
-    public Currency getCurrency() {
-        return currency;
-    }
-
-    public void setCurrency(Currency currency) {
-        this.currency = currency;
-    }
-
-    public Integer getBillingPeriodDays() {
-        return billingPeriodDays;
-    }
-
-    public void setBillingPeriodDays(Integer billingPeriodDays) {
-        this.billingPeriodDays = billingPeriodDays;
-    }
-
-    public LocalDate getNextBillingDate() {
-        return nextBillingDate;
-    }
-
-    public void setNextBillingDate(LocalDate nextBillingDate) {
-        this.nextBillingDate = nextBillingDate;
-    }
-
-    @Override
-    public String toString() {
-        return "Payment{" +
-                "id=" + getId() +
-                ", uuid=" + getUuid() +
-                ", cost=" + cost +
-                ", currency=" + currency +
-                ", billingPeriodDays=" + billingPeriodDays +
-                ", nextBillingDate=" + nextBillingDate +
-                ", createdAt=" + getCreatedAt() +
-                '}';
     }
 }

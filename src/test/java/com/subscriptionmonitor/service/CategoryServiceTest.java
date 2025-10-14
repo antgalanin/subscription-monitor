@@ -2,256 +2,201 @@ package com.subscriptionmonitor.service;
 
 import com.subscriptionmonitor.model.entity.Category;
 import com.subscriptionmonitor.model.enums.CategoryType;
-import com.subscriptionmonitor.storage.DataStorage;
-
+import com.subscriptionmonitor.repository.CategoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("CategoryService Tests")
 class CategoryServiceTest {
 
+    @Mock
+    private CategoryRepository categoryRepository;
+
+    @InjectMocks
     private CategoryService categoryService;
-    private DataStorage storage;
+
+    private Category testCategory;
+    private UUID testCategoryId;
+    private UUID userId;
+    private UUID category1Id;
+    private UUID category2Id;
 
     @BeforeEach
     void setUp() {
-        storage = DataStorage.getInstance();
-        storage.clearAll();
-        categoryService = new CategoryService();
+        testCategoryId = UUID.randomUUID();
+        userId = UUID.randomUUID();
+        category1Id = UUID.randomUUID();
+        category2Id = UUID.randomUUID();
+
+        testCategory = new Category("Streaming", CategoryType.SYSTEM, userId);
+        testCategory.setId(testCategoryId);
     }
 
     @Test
     @DisplayName("Создание категории с корректными данными")
     void testCreateCategory_Success() {
-        Category category = new Category("Развлечения", CategoryType.SYSTEM, 1L);
+        when(categoryRepository.save(any(Category.class))).thenReturn(testCategory);
 
-        Category created = categoryService.create(category);
+        Category created = categoryService.create(testCategory);
 
         assertNotNull(created);
-        assertNotNull(created.getId());
-        assertNotNull(created.getUuid());
-        assertEquals("Развлечения", created.getName());
+        assertEquals(testCategoryId, created.getId());
+        assertEquals("Streaming", created.getName());
         assertEquals(CategoryType.SYSTEM, created.getType());
-        assertEquals(1L, created.getCreatedByUserId());
-        assertEquals(1, categoryService.getTotalCount());
-    }
 
-    @Test
-    @DisplayName("Создание категории с null")
-    void testCreateCategory_Null() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> categoryService.create(null));
-
-        assertEquals("Category cannot be null", exception.getMessage());
-        assertEquals(0, categoryService.getTotalCount());
-    }
-
-    @Test
-    @DisplayName("Создание категории с пустым именем")
-    void testCreateCategory_EmptyName() {
-        Category category = new Category("", CategoryType.SYSTEM, 1L);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> categoryService.create(category));
-
-        assertTrue(exception.getMessage().contains("name cannot be null or empty"));
-        assertEquals(0, categoryService.getTotalCount());
-    }
-
-    @Test
-    @DisplayName("Создание категории с null именем")
-    void testCreateCategory_NullName() {
-        Category category = new Category(null, CategoryType.SYSTEM, 1L);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> categoryService.create(category));
-
-        assertTrue(exception.getMessage().contains("name cannot be null or empty"));
-        assertEquals(0, categoryService.getTotalCount());
+        verify(categoryRepository, times(1)).save(any(Category.class));
     }
 
     @Test
     @DisplayName("Поиск категории по ID")
     void testFindById_Success() {
-        Category category = new Category("Образование", CategoryType.CUSTOM, 2L);
-        Category created = categoryService.create(category);
+        when(categoryRepository.findById(testCategoryId)).thenReturn(Optional.of(testCategory));
 
-        Optional<Category> found = categoryService.findById(created.getId());
+        Optional<Category> found = categoryService.findById(testCategoryId);
 
         assertTrue(found.isPresent());
-        assertEquals(created.getId(), found.get().getId());
-        assertEquals("Образование", found.get().getName());
+        assertEquals(testCategoryId, found.get().getId());
+        assertEquals("Streaming", found.get().getName());
+
+        verify(categoryRepository, times(1)).findById(testCategoryId);
     }
 
     @Test
     @DisplayName("Поиск категории по несуществующему ID")
     void testFindById_NotFound() {
-        Optional<Category> found = categoryService.findById(999L);
+        UUID nonExistentId = UUID.randomUUID();
+        when(categoryRepository.findById(nonExistentId)).thenReturn(Optional.empty());
+
+        Optional<Category> found = categoryService.findById(nonExistentId);
 
         assertFalse(found.isPresent());
+
+        verify(categoryRepository, times(1)).findById(nonExistentId);
     }
 
     @Test
     @DisplayName("Получение всех категорий")
     void testFindAll() {
-        Category category1 = new Category("Развлечения", CategoryType.SYSTEM, 1L);
-        Category category2 = new Category("Образование", CategoryType.CUSTOM, 2L);
+        Category category1 = new Category("Streaming", CategoryType.SYSTEM, userId);
+        category1.setId(category1Id);
+        Category category2 = new Category("Software", CategoryType.CUSTOM, userId);
+        category2.setId(category2Id);
 
-        categoryService.create(category1);
-        categoryService.create(category2);
+        when(categoryRepository.findAll()).thenReturn(Arrays.asList(category1, category2));
 
         List<Category> categories = categoryService.findAll();
 
         assertEquals(2, categories.size());
-        assertTrue(categories.stream().anyMatch(c -> "Развлечения".equals(c.getName())));
-        assertTrue(categories.stream().anyMatch(c -> "Образование".equals(c.getName())));
+        assertTrue(categories.stream().anyMatch(c -> "Streaming".equals(c.getName())));
+        assertTrue(categories.stream().anyMatch(c -> "Software".equals(c.getName())));
+
+        verify(categoryRepository, times(1)).findAll();
+    }
+
+    @Test
+    @DisplayName("Поиск категорий по типу")
+    void testFindByType() {
+        Category category1 = new Category("Netflix", CategoryType.SYSTEM, userId);
+        category1.setId(category1Id);
+        Category category2 = new Category("Spotify", CategoryType.SYSTEM, userId);
+        category2.setId(category2Id);
+
+        when(categoryRepository.findByType(CategoryType.SYSTEM))
+                .thenReturn(Arrays.asList(category1, category2));
+
+        List<Category> categories = categoryService.findByType(CategoryType.SYSTEM);
+
+        assertEquals(2, categories.size());
+        assertTrue(categories.stream().allMatch(c -> c.getType() == CategoryType.SYSTEM));
+
+        verify(categoryRepository, times(1)).findByType(CategoryType.SYSTEM);
+    }
+
+    @Test
+    @DisplayName("Поиск категорий по пользователю")
+    void testFindByCreatedByUserId() {
+        Category category1 = new Category("Category1", CategoryType.CUSTOM, userId);
+        category1.setId(category1Id);
+        Category category2 = new Category("Category2", CategoryType.CUSTOM, userId);
+        category2.setId(category2Id);
+
+        when(categoryRepository.findByCreatedByUserId(userId))
+                .thenReturn(Arrays.asList(category1, category2));
+
+        List<Category> categories = categoryService.findByCreatedByUserId(userId);
+
+        assertEquals(2, categories.size());
+        assertTrue(categories.stream().allMatch(c -> c.getCreatedByUserId().equals(userId)));
+
+        verify(categoryRepository, times(1)).findByCreatedByUserId(userId);
+    }
+
+    @Test
+    @DisplayName("Поиск категорий по типу и пользователю")
+    void testFindByTypeAndCreatedByUserId() {
+        Category category1 = new Category("Custom1", CategoryType.CUSTOM, userId);
+        category1.setId(category1Id);
+
+        when(categoryRepository.findByTypeAndCreatedByUserId(CategoryType.CUSTOM, userId))
+                .thenReturn(Arrays.asList(category1));
+
+        List<Category> categories = categoryService.findByTypeAndCreatedByUserId(CategoryType.CUSTOM, userId);
+
+        assertEquals(1, categories.size());
+        assertEquals(CategoryType.CUSTOM, categories.get(0).getType());
+        assertEquals(userId, categories.get(0).getCreatedByUserId());
+
+        verify(categoryRepository, times(1)).findByTypeAndCreatedByUserId(CategoryType.CUSTOM, userId);
     }
 
     @Test
     @DisplayName("Обновление категории")
     void testUpdateCategory_Success() {
-        Category category = new Category("Развлечения", CategoryType.SYSTEM, 1L);
-        Category created = categoryService.create(category);
+        Category updatedCategory = new Category("Updated Name", CategoryType.SYSTEM, userId);
+        updatedCategory.setId(testCategoryId);
 
-        created.setName("Развлечения и игры");
-        created.setType(CategoryType.CUSTOM);
+        when(categoryRepository.save(any(Category.class))).thenReturn(updatedCategory);
 
-        Category updated = categoryService.update(created);
+        Category updated = categoryService.update(updatedCategory);
 
-        assertEquals("Развлечения и игры", updated.getName());
-        assertEquals(CategoryType.CUSTOM, updated.getType());
-        assertEquals(created.getId(), updated.getId());
-    }
+        assertEquals("Updated Name", updated.getName());
+        assertEquals(testCategoryId, updated.getId());
 
-    @Test
-    @DisplayName("Обновление несуществующей категории")
-    void testUpdateCategory_NotFound() {
-        Category category = new Category("Тест", CategoryType.SYSTEM, 1L);
-        category.setId(999L);
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> categoryService.update(category));
-
-        assertTrue(exception.getMessage().contains("Category not found"));
+        verify(categoryRepository, times(1)).save(any(Category.class));
     }
 
     @Test
     @DisplayName("Удаление категории")
     void testDeleteCategory_Success() {
-        Category category = new Category("Образование", CategoryType.CUSTOM, 2L);
-        Category created = categoryService.create(category);
+        doNothing().when(categoryRepository).deleteById(testCategoryId);
 
-        boolean deleted = categoryService.deleteById(created.getId());
+        categoryService.delete(testCategoryId);
 
-        assertTrue(deleted);
-        assertEquals(0, categoryService.getTotalCount());
-        assertFalse(categoryService.findById(created.getId()).isPresent());
+        verify(categoryRepository, times(1)).deleteById(testCategoryId);
     }
 
     @Test
-    @DisplayName("Удаление несуществующей категории")
-    void testDeleteCategory_NotFound() {
-        boolean deleted = categoryService.deleteById(999L);
+    @DisplayName("Удаление всех категорий")
+    void testDeleteAll() {
+        doNothing().when(categoryRepository).deleteAll();
 
-        assertFalse(deleted);
-    }
+        categoryService.deleteAll();
 
-    @Test
-    @DisplayName("Получение системных категорий")
-    void testGetDefaultCategories() {
-        Category default1 = new Category("Развлечения", CategoryType.SYSTEM, 1L);
-        Category default2 = new Category("Образование", CategoryType.SYSTEM, 1L);
-        Category user1 = new Category("Личное", CategoryType.CUSTOM, 2L);
-        Category user2 = new Category("Работа", CategoryType.CUSTOM, 3L);
-
-        categoryService.create(default1);
-        categoryService.create(default2);
-        categoryService.create(user1);
-        categoryService.create(user2);
-
-        List<Category> defaultCategories = categoryService.getDefaultCategories();
-
-        assertEquals(2, defaultCategories.size());
-        assertTrue(defaultCategories.stream().allMatch(c -> CategoryType.SYSTEM.equals(c.getType())));
-        assertTrue(defaultCategories.stream().anyMatch(c -> "Развлечения".equals(c.getName())));
-        assertTrue(defaultCategories.stream().anyMatch(c -> "Образование".equals(c.getName())));
-    }
-
-    @Test
-    @DisplayName("Получение категорий пользователя")
-    void testGetCategoriesByUser() {
-        Category default1 = new Category("Развлечения", CategoryType.SYSTEM, 1L);
-        Category user1_cat1 = new Category("Личное", CategoryType.CUSTOM, 2L);
-        Category user1_cat2 = new Category("Хобби", CategoryType.CUSTOM, 2L);
-        Category user2_cat1 = new Category("Работа", CategoryType.CUSTOM, 3L);
-
-        categoryService.create(default1);
-        categoryService.create(user1_cat1);
-        categoryService.create(user1_cat2);
-        categoryService.create(user2_cat1);
-
-        List<Category> user2Categories = categoryService.getCategoriesByUser(2L);
-
-        assertEquals(2, user2Categories.size());
-        assertTrue(user2Categories.stream().allMatch(c -> c.getCreatedByUserId().equals(2L)));
-        assertTrue(user2Categories.stream().anyMatch(c -> "Личное".equals(c.getName())));
-        assertTrue(user2Categories.stream().anyMatch(c -> "Хобби".equals(c.getName())));
-    }
-
-    @Test
-    @DisplayName("Получение доступных категорий для пользователя")
-    void testGetAvailableCategoriesForUser() {
-        Category default1 = new Category("Развлечения", CategoryType.SYSTEM, 1L);
-        Category default2 = new Category("Образование", CategoryType.SYSTEM, 1L);
-        Category user2_cat1 = new Category("Личное", CategoryType.CUSTOM, 2L);
-        Category user3_cat1 = new Category("Работа", CategoryType.CUSTOM, 3L);
-
-        categoryService.create(default1);
-        categoryService.create(default2);
-        categoryService.create(user2_cat1);
-        categoryService.create(user3_cat1);
-
-        List<Category> user2Available = categoryService.getAvailableCategoriesForUser(2L);
-
-        assertEquals(3, user2Available.size());
-        assertTrue(user2Available.stream().anyMatch(c -> "Развлечения".equals(c.getName())));
-        assertTrue(user2Available.stream().anyMatch(c -> "Образование".equals(c.getName())));
-        assertTrue(user2Available.stream().anyMatch(c -> "Личное".equals(c.getName())));
-        assertFalse(user2Available.stream().anyMatch(c -> "Работа".equals(c.getName())));
-    }
-
-    @Test
-    @DisplayName("Поиск категории по имени")
-    void testFindByName_Success() {
-        Category category = new Category("Развлечения", CategoryType.SYSTEM, 1L);
-        categoryService.create(category);
-
-        Optional<Category> found = categoryService.findByName("Развлечения");
-
-        assertTrue(found.isPresent());
-        assertEquals("Развлечения", found.get().getName());
-    }
-
-    @Test
-    @DisplayName("Поиск категории по несуществующему имени")
-    void testFindByName_NotFound() {
-        Optional<Category> found = categoryService.findByName("Несуществующая");
-
-        assertFalse(found.isPresent());
-    }
-
-    @Test
-    @DisplayName("Поиск категории по null имени")
-    void testFindByName_NullName() {
-        Optional<Category> found = categoryService.findByName(null);
-
-        assertFalse(found.isPresent());
+        verify(categoryRepository, times(1)).deleteAll();
     }
 }

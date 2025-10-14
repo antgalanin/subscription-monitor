@@ -1,23 +1,38 @@
 package com.subscriptionmonitor.model.entity;
 
 import com.subscriptionmonitor.model.enums.Currency;
+import jakarta.persistence.*;
+import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
+@Entity
+@Table(name = "subscriptions")
+@Getter
+@Setter
+@NoArgsConstructor
+@ToString(callSuper = true, exclude = "payment")
 public class Subscription extends BaseEntity {
-    private Long userId;
-    private Long categoryId;
+
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
+
+    @Column(name = "category_id", nullable = false)
+    private UUID categoryId;
+
+    @Column(nullable = false, length = 200)
     private String name;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "payment_id", nullable = false, unique = true)
     private Payment payment;
-    private Boolean isActive;
 
-    public Subscription() {
-        super();
-        this.payment = new Payment();
-        this.isActive = true;
-    }
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
 
-    public Subscription(Long userId, Long categoryId, String name, BigDecimal cost) {
+    public Subscription(UUID userId, UUID categoryId, String name, BigDecimal cost) {
         super();
         this.userId = userId;
         this.categoryId = categoryId;
@@ -26,7 +41,7 @@ public class Subscription extends BaseEntity {
         this.isActive = true;
     }
 
-    public Subscription(Long userId, Long categoryId, String name, BigDecimal cost,
+    public Subscription(UUID userId, UUID categoryId, String name, BigDecimal cost,
                        Currency currency, Integer billingPeriodDays, LocalDate nextBillingDate) {
         super();
         this.userId = userId;
@@ -36,39 +51,6 @@ public class Subscription extends BaseEntity {
         this.isActive = true;
     }
 
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-
-    public Long getCategoryId() {
-        return categoryId;
-    }
-
-    public void setCategoryId(Long categoryId) {
-        this.categoryId = categoryId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public Payment getPayment() {
-        return payment;
-    }
-
-    public void setPayment(Payment payment) {
-        this.payment = payment;
-    }
-
-    // Convenience methods для обратной совместимости
     public BigDecimal getCost() {
         return payment != null ? payment.getCost() : null;
     }
@@ -111,27 +93,5 @@ public class Subscription extends BaseEntity {
             payment = new Payment();
         }
         payment.setNextBillingDate(nextBillingDate);
-    }
-
-    public Boolean getIsActive() {
-        return isActive;
-    }
-
-    public void setIsActive(Boolean isActive) {
-        this.isActive = isActive;
-    }
-
-    @Override
-    public String toString() {
-        return "Subscription{" +
-                "id=" + getId() +
-                ", uuid=" + getUuid() +
-                ", userId=" + userId +
-                ", categoryId=" + categoryId +
-                ", name='" + name + '\'' +
-                ", payment=" + payment +
-                ", isActive=" + isActive +
-                ", createdAt=" + getCreatedAt() +
-                '}';
     }
 }
