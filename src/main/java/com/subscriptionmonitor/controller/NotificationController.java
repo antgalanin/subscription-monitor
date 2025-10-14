@@ -1,6 +1,8 @@
 package com.subscriptionmonitor.controller;
 
 import com.subscriptionmonitor.dto.NotificationDto;
+import com.subscriptionmonitor.exception.NotificationNotFoundException;
+import com.subscriptionmonitor.exception.NotificationValidationException;
 import com.subscriptionmonitor.model.entity.Notification;
 import com.subscriptionmonitor.model.enums.NotificationType;
 import com.subscriptionmonitor.service.NotificationService;
@@ -23,14 +25,14 @@ public class NotificationController {
     private final NotificationService notificationService;
 
     @PostMapping
-    public ResponseEntity<NotificationDto> create(@RequestBody NotificationDto notificationDto) throws Exception {
+    public ResponseEntity<NotificationDto> create(@RequestBody NotificationDto notificationDto) throws NotificationValidationException {
         Notification notification = toEntity(notificationDto);
         Notification created = notificationService.create(notification);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<NotificationDto> getById(@PathVariable UUID id) throws Exception {
+    public ResponseEntity<NotificationDto> getById(@PathVariable UUID id) throws NotificationNotFoundException {
         Notification notification = notificationService.findById(id);
         return ResponseEntity.ok(toDto(notification));
     }
@@ -86,13 +88,13 @@ public class NotificationController {
     }
 
     @PatchMapping("/{id}/mark-sent")
-    public ResponseEntity<Void> markAsSent(@PathVariable UUID id) throws Exception {
+    public ResponseEntity<Void> markAsSent(@PathVariable UUID id) throws NotificationNotFoundException {
         notificationService.markAsSent(id);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<NotificationDto> update(@PathVariable UUID id, @RequestBody NotificationDto notificationDto) throws Exception {
+    public ResponseEntity<NotificationDto> update(@PathVariable UUID id, @RequestBody NotificationDto notificationDto) throws NotificationNotFoundException, NotificationValidationException {
         Notification existing = notificationService.findById(id);
         notificationDto.setId(id);
         Notification notification = toEntity(notificationDto);
@@ -101,7 +103,7 @@ public class NotificationController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) throws Exception {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) throws NotificationNotFoundException {
         notificationService.delete(id);
         return ResponseEntity.noContent().build();
     }

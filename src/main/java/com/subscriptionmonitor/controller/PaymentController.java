@@ -1,6 +1,8 @@
 package com.subscriptionmonitor.controller;
 
 import com.subscriptionmonitor.dto.PaymentDto;
+import com.subscriptionmonitor.exception.PaymentNotFoundException;
+import com.subscriptionmonitor.exception.PaymentValidationException;
 import com.subscriptionmonitor.model.entity.Payment;
 import com.subscriptionmonitor.model.enums.Currency;
 import com.subscriptionmonitor.service.PaymentService;
@@ -23,14 +25,14 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @PostMapping
-    public ResponseEntity<PaymentDto> create(@RequestBody PaymentDto paymentDto) throws Exception {
+    public ResponseEntity<PaymentDto> create(@RequestBody PaymentDto paymentDto) throws PaymentValidationException {
         Payment payment = toEntity(paymentDto);
         Payment created = paymentService.create(payment);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PaymentDto> getById(@PathVariable UUID id) throws Exception {
+    public ResponseEntity<PaymentDto> getById(@PathVariable UUID id) throws PaymentNotFoundException {
         Payment payment = paymentService.findById(id);
         return ResponseEntity.ok(toDto(payment));
     }
@@ -71,7 +73,7 @@ public class PaymentController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PaymentDto> update(@PathVariable UUID id, @RequestBody PaymentDto paymentDto) throws Exception {
+    public ResponseEntity<PaymentDto> update(@PathVariable UUID id, @RequestBody PaymentDto paymentDto) throws PaymentNotFoundException, PaymentValidationException {
         Payment existing = paymentService.findById(id);
         paymentDto.setId(id);
         Payment payment = toEntity(paymentDto);
@@ -80,7 +82,7 @@ public class PaymentController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) throws Exception {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) throws PaymentNotFoundException {
         paymentService.delete(id);
         return ResponseEntity.noContent().build();
     }

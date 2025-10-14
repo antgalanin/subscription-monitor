@@ -1,6 +1,9 @@
 package com.subscriptionmonitor.controller;
 
 import com.subscriptionmonitor.dto.CategoryDto;
+import com.subscriptionmonitor.exception.CategoryNotFoundException;
+import com.subscriptionmonitor.exception.CategoryValidationException;
+import com.subscriptionmonitor.exception.LegacyCategoryException;
 import com.subscriptionmonitor.model.entity.Category;
 import com.subscriptionmonitor.model.enums.CategoryType;
 import com.subscriptionmonitor.service.CategoryService;
@@ -21,14 +24,14 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     @PostMapping
-    public ResponseEntity<CategoryDto> create(@RequestBody CategoryDto categoryDto) throws Exception {
+    public ResponseEntity<CategoryDto> create(@RequestBody CategoryDto categoryDto) throws CategoryValidationException, LegacyCategoryException {
         Category category = toEntity(categoryDto);
         Category created = categoryService.create(category);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CategoryDto> getById(@PathVariable UUID id) throws Exception {
+    public ResponseEntity<CategoryDto> getById(@PathVariable UUID id) throws CategoryNotFoundException {
         Category category = categoryService.findById(id);
         return ResponseEntity.ok(toDto(category));
     }
@@ -68,7 +71,7 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CategoryDto> update(@PathVariable UUID id, @RequestBody CategoryDto categoryDto) throws Exception {
+    public ResponseEntity<CategoryDto> update(@PathVariable UUID id, @RequestBody CategoryDto categoryDto) throws CategoryNotFoundException, CategoryValidationException, LegacyCategoryException {
         categoryDto.setId(id);
         Category category = toEntity(categoryDto);
         Category updated = categoryService.update(category);
@@ -76,7 +79,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) throws Exception {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) throws CategoryNotFoundException {
         categoryService.delete(id);
         return ResponseEntity.noContent().build();
     }
