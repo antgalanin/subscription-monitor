@@ -1,4 +1,6 @@
-package com.subscriptionmonitor.exception;
+package com.subscriptionmonitor.exception.notfound;
+
+import com.subscriptionmonitor.exception.base.EntityNotFoundException;
 
 import java.util.UUID;
 

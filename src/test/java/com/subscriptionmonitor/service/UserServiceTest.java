@@ -1,6 +1,6 @@
 package com.subscriptionmonitor.service;
 
-import com.subscriptionmonitor.exception.UserNotFoundException;
+import com.subscriptionmonitor.exception.notfound.UserNotFoundException;
 import com.subscriptionmonitor.model.entity.User;
 import com.subscriptionmonitor.model.enums.UserRole;
 import com.subscriptionmonitor.repository.UserRepository;

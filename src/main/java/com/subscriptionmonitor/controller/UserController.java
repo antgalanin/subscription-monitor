@@ -1,8 +1,8 @@
 package com.subscriptionmonitor.controller;
 
 import com.subscriptionmonitor.dto.UserDto;
-import com.subscriptionmonitor.exception.UserNotFoundException;
-import com.subscriptionmonitor.exception.UserValidationException;
+import com.subscriptionmonitor.exception.notfound.UserNotFoundException;
+import com.subscriptionmonitor.exception.validation.UserValidationException;
 import com.subscriptionmonitor.model.entity.User;
 import com.subscriptionmonitor.model.enums.UserRole;
 import com.subscriptionmonitor.service.UserService;

@@ -1,7 +1,7 @@
 package com.subscriptionmonitor.service;
 
-import com.subscriptionmonitor.exception.PaymentNotFoundException;
-import com.subscriptionmonitor.exception.PaymentValidationException;
+import com.subscriptionmonitor.exception.notfound.PaymentNotFoundException;
+import com.subscriptionmonitor.exception.validation.PaymentValidationException;
 import com.subscriptionmonitor.model.entity.Payment;
 import com.subscriptionmonitor.model.enums.Currency;
 import com.subscriptionmonitor.repository.PaymentRepository;

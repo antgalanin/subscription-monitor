@@ -1,6 +1,6 @@
 package com.subscriptionmonitor.service;
 
-import com.subscriptionmonitor.exception.CategoryNotFoundException;
+import com.subscriptionmonitor.exception.notfound.CategoryNotFoundException;
 import com.subscriptionmonitor.model.entity.Category;
 import com.subscriptionmonitor.model.enums.CategoryType;
 import com.subscriptionmonitor.repository.CategoryRepository;

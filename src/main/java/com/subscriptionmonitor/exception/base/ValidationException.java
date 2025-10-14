@@ -1,4 +1,4 @@
-package com.subscriptionmonitor.exception;
+package com.subscriptionmonitor.exception.base;
 
 public abstract class ValidationException extends BaseException {
 

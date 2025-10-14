@@ -1,4 +1,6 @@
-package com.subscriptionmonitor.exception;
+package com.subscriptionmonitor.exception.validation;
+
+import com.subscriptionmonitor.exception.base.ValidationException;
 
 public class UserValidationException extends ValidationException {
 

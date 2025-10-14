@@ -1,6 +1,6 @@
 package com.subscriptionmonitor.service;
 
-import com.subscriptionmonitor.exception.PaymentNotFoundException;
+import com.subscriptionmonitor.exception.notfound.PaymentNotFoundException;
 import com.subscriptionmonitor.model.entity.Payment;
 import com.subscriptionmonitor.model.enums.Currency;
 import com.subscriptionmonitor.repository.PaymentRepository;
@@ -11,7 +11,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

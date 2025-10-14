@@ -1,7 +1,10 @@
 package com.subscriptionmonitor.handler;
 
 import com.subscriptionmonitor.dto.ErrorResponse;
-import com.subscriptionmonitor.exception.*;
+import com.subscriptionmonitor.exception.base.EntityNotFoundException;
+import com.subscriptionmonitor.exception.base.ValidationException;
+import com.subscriptionmonitor.exception.special.AccessDeniedException;
+import com.subscriptionmonitor.exception.special.LegacyCategoryException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;

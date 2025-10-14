@@ -1,7 +1,7 @@
 package com.subscriptionmonitor.service;
 
-import com.subscriptionmonitor.exception.SubscriptionNotFoundException;
-import com.subscriptionmonitor.exception.SubscriptionValidationException;
+import com.subscriptionmonitor.exception.notfound.SubscriptionNotFoundException;
+import com.subscriptionmonitor.exception.validation.SubscriptionValidationException;
 import com.subscriptionmonitor.model.entity.Subscription;
 import com.subscriptionmonitor.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;

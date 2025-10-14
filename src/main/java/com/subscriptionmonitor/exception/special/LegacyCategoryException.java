@@ -1,4 +1,6 @@
-package com.subscriptionmonitor.exception;
+package com.subscriptionmonitor.exception.special;
+
+import com.subscriptionmonitor.exception.base.BaseException;
 
 import java.util.UUID;
 

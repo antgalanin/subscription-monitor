@@ -1,7 +1,7 @@
 package com.subscriptionmonitor.service;
 
-import com.subscriptionmonitor.exception.NotificationNotFoundException;
-import com.subscriptionmonitor.exception.NotificationValidationException;
+import com.subscriptionmonitor.exception.notfound.NotificationNotFoundException;
+import com.subscriptionmonitor.exception.validation.NotificationValidationException;
 import com.subscriptionmonitor.model.entity.Notification;
 import com.subscriptionmonitor.model.enums.NotificationType;
 import com.subscriptionmonitor.repository.NotificationRepository;
