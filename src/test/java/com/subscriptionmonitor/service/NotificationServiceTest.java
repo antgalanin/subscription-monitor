@@ -1,5 +1,6 @@
 package com.subscriptionmonitor.service;
 
+import com.subscriptionmonitor.exception.notfound.NotificationNotFoundException;
 import com.subscriptionmonitor.model.entity.Notification;
 import com.subscriptionmonitor.model.enums.NotificationType;
 import com.subscriptionmonitor.repository.NotificationRepository;
@@ -10,7 +11,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -62,7 +62,7 @@ class NotificationServiceTest {
 
     @Test
     @DisplayName("Создание уведомления с корректными данными")
-    void testCreateNotification_Success() {
+    void testCreateNotification_Success() throws Exception {
         when(notificationRepository.save(any(Notification.class))).thenReturn(testNotification);
 
         Notification created = notificationService.create(testNotification);
@@ -79,14 +79,14 @@ class NotificationServiceTest {
 
     @Test
     @DisplayName("Поиск уведомления по ID")
-    void testFindById_Success() {
+    void testFindById_Success() throws Exception {
         when(notificationRepository.findById(testNotificationId)).thenReturn(Optional.of(testNotification));
 
-        Optional<Notification> found = notificationService.findById(testNotificationId);
+        Notification found = notificationService.findById(testNotificationId);
 
-        assertTrue(found.isPresent());
-        assertEquals(testNotificationId, found.get().getId());
-        assertEquals(NotificationType.UPCOMING_PAYMENT, found.get().getType());
+        assertNotNull(found);
+        assertEquals(testNotificationId, found.getId());
+        assertEquals(NotificationType.UPCOMING_PAYMENT, found.getType());
 
         verify(notificationRepository, times(1)).findById(testNotificationId);
     }
@@ -97,9 +97,9 @@ class NotificationServiceTest {
         UUID nonExistentId = UUID.randomUUID();
         when(notificationRepository.findById(nonExistentId)).thenReturn(Optional.empty());
 
-        Optional<Notification> found = notificationService.findById(nonExistentId);
-
-        assertFalse(found.isPresent());
+        assertThrows(NotificationNotFoundException.class, () -> {
+            notificationService.findById(nonExistentId);
+        });
 
         verify(notificationRepository, times(1)).findById(nonExistentId);
     }
@@ -230,7 +230,7 @@ class NotificationServiceTest {
 
     @Test
     @DisplayName("Отметка уведомления как отправленного")
-    void testMarkAsSent() {
+    void testMarkAsSent() throws Exception {
         Notification notification = new Notification(
                 userId, subscription1Id, LocalDateTime.now(), NotificationType.UPCOMING_PAYMENT, "Test"
         );
@@ -248,12 +248,13 @@ class NotificationServiceTest {
 
     @Test
     @DisplayName("Обновление уведомления")
-    void testUpdateNotification_Success() {
+    void testUpdateNotification_Success() throws Exception {
         Notification updatedNotification = new Notification(
                 userId, subscription1Id, LocalDateTime.now(), NotificationType.UPCOMING_PAYMENT, "Updated message"
         );
         updatedNotification.setId(testNotificationId);
 
+        when(notificationRepository.existsById(testNotificationId)).thenReturn(true);
         when(notificationRepository.save(any(Notification.class))).thenReturn(updatedNotification);
 
         Notification updated = notificationService.update(updatedNotification);
@@ -266,7 +267,8 @@ class NotificationServiceTest {
 
     @Test
     @DisplayName("Удаление уведомления")
-    void testDeleteNotification_Success() {
+    void testDeleteNotification_Success() throws Exception {
+        when(notificationRepository.existsById(testNotificationId)).thenReturn(true);
         doNothing().when(notificationRepository).deleteById(testNotificationId);
 
         notificationService.delete(testNotificationId);

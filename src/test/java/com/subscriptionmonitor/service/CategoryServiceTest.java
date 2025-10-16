@@ -1,5 +1,6 @@
 package com.subscriptionmonitor.service;
 
+import com.subscriptionmonitor.exception.notfound.CategoryNotFoundException;
 import com.subscriptionmonitor.model.entity.Category;
 import com.subscriptionmonitor.model.enums.CategoryType;
 import com.subscriptionmonitor.repository.CategoryRepository;
@@ -49,7 +50,7 @@ class CategoryServiceTest {
 
     @Test
     @DisplayName("Создание категории с корректными данными")
-    void testCreateCategory_Success() {
+    void testCreateCategory_Success() throws Exception {
         when(categoryRepository.save(any(Category.class))).thenReturn(testCategory);
 
         Category created = categoryService.create(testCategory);
@@ -64,14 +65,14 @@ class CategoryServiceTest {
 
     @Test
     @DisplayName("Поиск категории по ID")
-    void testFindById_Success() {
+    void testFindById_Success() throws Exception {
         when(categoryRepository.findById(testCategoryId)).thenReturn(Optional.of(testCategory));
 
-        Optional<Category> found = categoryService.findById(testCategoryId);
+        Category found = categoryService.findById(testCategoryId);
 
-        assertTrue(found.isPresent());
-        assertEquals(testCategoryId, found.get().getId());
-        assertEquals("Streaming", found.get().getName());
+        assertNotNull(found);
+        assertEquals(testCategoryId, found.getId());
+        assertEquals("Streaming", found.getName());
 
         verify(categoryRepository, times(1)).findById(testCategoryId);
     }
@@ -82,9 +83,9 @@ class CategoryServiceTest {
         UUID nonExistentId = UUID.randomUUID();
         when(categoryRepository.findById(nonExistentId)).thenReturn(Optional.empty());
 
-        Optional<Category> found = categoryService.findById(nonExistentId);
-
-        assertFalse(found.isPresent());
+        assertThrows(CategoryNotFoundException.class, () -> {
+            categoryService.findById(nonExistentId);
+        });
 
         verify(categoryRepository, times(1)).findById(nonExistentId);
     }
@@ -166,10 +167,11 @@ class CategoryServiceTest {
 
     @Test
     @DisplayName("Обновление категории")
-    void testUpdateCategory_Success() {
+    void testUpdateCategory_Success() throws Exception {
         Category updatedCategory = new Category("Updated Name", CategoryType.SYSTEM, userId);
         updatedCategory.setId(testCategoryId);
 
+        when(categoryRepository.existsById(testCategoryId)).thenReturn(true);
         when(categoryRepository.save(any(Category.class))).thenReturn(updatedCategory);
 
         Category updated = categoryService.update(updatedCategory);
@@ -182,7 +184,8 @@ class CategoryServiceTest {
 
     @Test
     @DisplayName("Удаление категории")
-    void testDeleteCategory_Success() {
+    void testDeleteCategory_Success() throws Exception {
+        when(categoryRepository.existsById(testCategoryId)).thenReturn(true);
         doNothing().when(categoryRepository).deleteById(testCategoryId);
 
         categoryService.delete(testCategoryId);

@@ -135,3 +135,51 @@
 - CRUD операции
 - Получение pending уведомлений
 - Отметка как отправленные
+
+---
+
+## Лабораторная работа №3 "Обработка исключений"
+
+### Иерархия исключений
+
+**BaseException** - базовое исключение для всей системы
+- Поля: `code` (код ошибки), `args` (параметры для сообщения)
+- Наследуется от Exception
+
+**EntityNotFoundException** - базовое исключение для "сущность не найдена"
+- Наследуется от BaseException
+- HTTP статус: 404 NOT_FOUND
+
+**ValidationException** - базовое исключение для ошибок валидации
+- Наследуется от BaseException
+- HTTP статус: 400 BAD_REQUEST
+
+### Специфические исключения
+
+**NotFound исключения** (`exception/notfound`) - для всех 5 моделей:
+- `UserNotFoundException` - пользователь не найден
+- `CategoryNotFoundException` - категория не найдена
+- `PaymentNotFoundException` - платеж не найден
+- `SubscriptionNotFoundException` - подписка не найдена
+- `NotificationNotFoundException` - уведомление не найдено
+
+**Validation исключения** (`exception/validation`) - для всех 5 моделей:
+- `UserValidationException` - ошибки валидации пользователя
+- `CategoryValidationException` - ошибки валидации категории
+- `PaymentValidationException` - ошибки валидации платежа
+- `SubscriptionValidationException` - ошибки валидации подписки
+- `NotificationValidationException` - ошибки валидации уведомления
+
+**Специальные исключения** (`exception/special`):
+- `LegacyCategoryException` - попытка использования устаревшей категории (HTTP 410 GONE)
+- `AccessDeniedException` - отказ в доступе (HTTP 403 FORBIDDEN) (lab4 - Spring Security)
+
+### Обработка исключений
+
+**GlobalExceptionHandler** - централизованная обработка всех исключений
+- `@RestControllerAdvice` для перехвата исключений во всех контроллерах
+- Обработчики для каждого типа исключений
+
+**ErrorResponse** - DTO для ответов об ошибках
+- Поля: `status`, `error`, `message`, `code`, `timestamp`, `path`
+- JSON-форматирование timestamp

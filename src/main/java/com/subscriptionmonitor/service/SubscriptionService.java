@@ -1,5 +1,7 @@
 package com.subscriptionmonitor.service;
 
+import com.subscriptionmonitor.exception.notfound.SubscriptionNotFoundException;
+import com.subscriptionmonitor.exception.validation.SubscriptionValidationException;
 import com.subscriptionmonitor.model.entity.Subscription;
 import com.subscriptionmonitor.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
@@ -8,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -19,15 +20,17 @@ public class SubscriptionService {
 
     private final SubscriptionRepository subscriptionRepository;
 
-    public Subscription create(Subscription subscription) {
+    public Subscription create(Subscription subscription) throws SubscriptionValidationException {
         log.debug("Creating subscription: {}", subscription.getName());
+        validateSubscription(subscription);
         return subscriptionRepository.save(subscription);
     }
 
     @Transactional(readOnly = true)
-    public Optional<Subscription> findById(UUID id) {
+    public Subscription findById(UUID id) throws SubscriptionNotFoundException {
         log.debug("Finding subscription by id: {}", id);
-        return subscriptionRepository.findById(id);
+        return subscriptionRepository.findById(id)
+                .orElseThrow(() -> new SubscriptionNotFoundException(id));
     }
 
     @Transactional(readOnly = true)
@@ -60,26 +63,56 @@ public class SubscriptionService {
         return subscriptionRepository.findByCategoryId(categoryId);
     }
 
-    public Subscription update(Subscription subscription) {
+    public Subscription update(Subscription subscription) throws SubscriptionNotFoundException, SubscriptionValidationException {
         log.debug("Updating subscription: {}", subscription.getId());
+        if (subscription.getId() == null) {
+            throw new SubscriptionValidationException("Subscription ID cannot be null for update operation");
+        }
+        if (!subscriptionRepository.existsById(subscription.getId())) {
+            throw new SubscriptionNotFoundException(subscription.getId());
+        }
+        validateSubscription(subscription);
         return subscriptionRepository.save(subscription);
     }
 
-    public Optional<Subscription> deactivate(UUID id) {
+    public Subscription deactivate(UUID id) throws SubscriptionNotFoundException {
         log.debug("Deactivating subscription: {}", id);
-        return subscriptionRepository.findById(id).map(subscription -> {
-            subscription.setIsActive(false);
-            return subscriptionRepository.save(subscription);
-        });
+        Subscription subscription = findById(id);
+        subscription.setIsActive(false);
+        return subscriptionRepository.save(subscription);
     }
 
-    public void delete(UUID id) {
+    public void delete(UUID id) throws SubscriptionNotFoundException {
         log.debug("Deleting subscription: {}", id);
+        if (!subscriptionRepository.existsById(id)) {
+            throw new SubscriptionNotFoundException(id);
+        }
         subscriptionRepository.deleteById(id);
     }
 
     public void deleteAll() {
         log.debug("Deleting all subscriptions");
         subscriptionRepository.deleteAll();
+    }
+
+    private void validateSubscription(Subscription subscription) throws SubscriptionValidationException {
+        if (subscription == null) {
+            throw new SubscriptionValidationException("Subscription cannot be null");
+        }
+        if (subscription.getName() == null || subscription.getName().trim().isEmpty()) {
+            throw new SubscriptionValidationException("Subscription name cannot be empty");
+        }
+        if (subscription.getName().length() > 200) {
+            throw new SubscriptionValidationException("Subscription name cannot exceed 200 characters");
+        }
+        if (subscription.getUserId() == null) {
+            throw new SubscriptionValidationException("User ID cannot be null");
+        }
+        if (subscription.getCategoryId() == null) {
+            throw new SubscriptionValidationException("Category ID cannot be null");
+        }
+        if (subscription.getPayment() == null) {
+            throw new SubscriptionValidationException("Payment information cannot be null");
+        }
     }
 }

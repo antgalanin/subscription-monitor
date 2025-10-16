@@ -1,5 +1,6 @@
 package com.subscriptionmonitor.service;
 
+import com.subscriptionmonitor.exception.notfound.UserNotFoundException;
 import com.subscriptionmonitor.model.entity.User;
 import com.subscriptionmonitor.model.enums.UserRole;
 import com.subscriptionmonitor.repository.UserRepository;
@@ -49,7 +50,7 @@ class UserServiceTest {
 
     @Test
     @DisplayName("Создание пользователя с корректными данными")
-    void testCreateUser_Success() {
+    void testCreateUser_Success() throws Exception {
         when(userRepository.save(any(User.class))).thenReturn(testUser);
 
         User created = userService.create(testUser);
@@ -65,65 +66,65 @@ class UserServiceTest {
 
     @Test
     @DisplayName("Поиск пользователя по ID")
-    void testFindById_Success() {
+    void testFindById_Success() throws Exception {
         when(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser));
 
-        Optional<User> found = userService.findById(testUserId);
+        User found = userService.findById(testUserId);
 
-        assertTrue(found.isPresent());
-        assertEquals(testUserId, found.get().getId());
-        assertEquals("testuser", found.get().getUsername());
+        assertNotNull(found);
+        assertEquals(testUserId, found.getId());
+        assertEquals("testuser", found.getUsername());
 
         verify(userRepository, times(1)).findById(testUserId);
     }
 
     @Test
     @DisplayName("Поиск пользователя по несуществующему ID")
-    void testFindById_NotFound() {
+    void testFindById_NotFound() throws Exception {
         UUID nonExistentId = UUID.randomUUID();
         when(userRepository.findById(nonExistentId)).thenReturn(Optional.empty());
 
-        Optional<User> found = userService.findById(nonExistentId);
-
-        assertFalse(found.isPresent());
+        assertThrows(UserNotFoundException.class, () -> {
+            userService.findById(nonExistentId);
+        });
 
         verify(userRepository, times(1)).findById(nonExistentId);
     }
 
     @Test
     @DisplayName("Поиск пользователя по username")
-    void testFindByUsername_Success() {
+    void testFindByUsername_Success() throws Exception {
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
 
-        Optional<User> found = userService.findByUsername("testuser");
+        User found = userService.findByUsername("testuser");
 
-        assertTrue(found.isPresent());
-        assertEquals("testuser", found.get().getUsername());
+        assertNotNull(found);
+        assertEquals("testuser", found.getUsername());
 
         verify(userRepository, times(1)).findByUsername("testuser");
     }
 
     @Test
     @DisplayName("Поиск пользователя по несуществующему username")
-    void testFindByUsername_NotFound() {
+    void testFindByUsername_NotFound() throws Exception {
         when(userRepository.findByUsername("nonexistent")).thenReturn(Optional.empty());
 
-        Optional<User> found = userService.findByUsername("nonexistent");
-
-        assertFalse(found.isPresent());
+        assertThrows(UserNotFoundException.class, () -> {
+            userService.findByUsername("nonexistent");
+        });
 
         verify(userRepository, times(1)).findByUsername("nonexistent");
     }
 
     @Test
     @DisplayName("Поиск пользователя по email")
-    void testFindByEmail_Success() {
+    void testFindByEmail_Success() throws Exception {
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
 
-        Optional<User> found = userService.findByEmail("test@example.com");
+        User found = userService.findByEmail("test@example.com");
 
-        assertTrue(found.isPresent());
-        assertEquals("test@example.com", found.get().getEmail());
+        assertNotNull(found);
+        assertEquals("test@example.com", found.getEmail());
 
         verify(userRepository, times(1)).findByEmail("test@example.com");
     }
@@ -149,11 +150,14 @@ class UserServiceTest {
 
     @Test
     @DisplayName("Обновление пользователя")
-    void testUpdateUser_Success() {
+    void testUpdateUser_Success() throws Exception {
         User updatedUser = new User("testuser", "newemail@example.com", "password123");
         updatedUser.setId(testUserId);
         updatedUser.setNotificationDays(7);
 
+        when(userRepository.existsById(testUserId)).thenReturn(true);
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+        when(userRepository.findByEmail("newemail@example.com")).thenReturn(Optional.empty());
         when(userRepository.save(any(User.class))).thenReturn(updatedUser);
 
         User updated = userService.update(updatedUser);
@@ -167,7 +171,8 @@ class UserServiceTest {
 
     @Test
     @DisplayName("Удаление пользователя")
-    void testDeleteUser_Success() {
+    void testDeleteUser_Success() throws Exception {
+        when(userRepository.existsById(testUserId)).thenReturn(true);
         doNothing().when(userRepository).deleteById(testUserId);
 
         userService.delete(testUserId);

@@ -1,5 +1,6 @@
 package com.subscriptionmonitor.service;
 
+import com.subscriptionmonitor.exception.notfound.PaymentNotFoundException;
 import com.subscriptionmonitor.model.entity.Payment;
 import com.subscriptionmonitor.model.enums.Currency;
 import com.subscriptionmonitor.repository.PaymentRepository;
@@ -10,7 +11,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -50,7 +50,7 @@ class PaymentServiceTest {
 
     @Test
     @DisplayName("Создание платежа с корректными данными")
-    void testCreatePayment_Success() {
+    void testCreatePayment_Success() throws Exception {
         when(paymentRepository.save(any(Payment.class))).thenReturn(testPayment);
 
         Payment created = paymentService.create(testPayment);
@@ -66,14 +66,14 @@ class PaymentServiceTest {
 
     @Test
     @DisplayName("Поиск платежа по ID")
-    void testFindById_Success() {
+    void testFindById_Success() throws Exception {
         when(paymentRepository.findById(testPaymentId)).thenReturn(Optional.of(testPayment));
 
-        Optional<Payment> found = paymentService.findById(testPaymentId);
+        Payment found = paymentService.findById(testPaymentId);
 
-        assertTrue(found.isPresent());
-        assertEquals(testPaymentId, found.get().getId());
-        assertEquals(new BigDecimal("999.99"), found.get().getCost());
+        assertNotNull(found);
+        assertEquals(testPaymentId, found.getId());
+        assertEquals(new BigDecimal("999.99"), found.getCost());
 
         verify(paymentRepository, times(1)).findById(testPaymentId);
     }
@@ -84,9 +84,9 @@ class PaymentServiceTest {
         UUID nonExistentId = UUID.randomUUID();
         when(paymentRepository.findById(nonExistentId)).thenReturn(Optional.empty());
 
-        Optional<Payment> found = paymentService.findById(nonExistentId);
-
-        assertFalse(found.isPresent());
+        assertThrows(PaymentNotFoundException.class, () -> {
+            paymentService.findById(nonExistentId);
+        });
 
         verify(paymentRepository, times(1)).findById(nonExistentId);
     }
@@ -171,10 +171,11 @@ class PaymentServiceTest {
 
     @Test
     @DisplayName("Обновление платежа")
-    void testUpdatePayment_Success() {
+    void testUpdatePayment_Success() throws Exception {
         Payment updatedPayment = new Payment(new BigDecimal("1500.00"), Currency.USD, 30, LocalDate.now().plusDays(30));
         updatedPayment.setId(testPaymentId);
 
+        when(paymentRepository.existsById(testPaymentId)).thenReturn(true);
         when(paymentRepository.save(any(Payment.class))).thenReturn(updatedPayment);
 
         Payment updated = paymentService.update(updatedPayment);
@@ -188,7 +189,8 @@ class PaymentServiceTest {
 
     @Test
     @DisplayName("Удаление платежа")
-    void testDeletePayment_Success() {
+    void testDeletePayment_Success() throws Exception {
+        when(paymentRepository.existsById(testPaymentId)).thenReturn(true);
         doNothing().when(paymentRepository).deleteById(testPaymentId);
 
         paymentService.delete(testPaymentId);
