@@ -7,6 +7,7 @@ import com.subscriptionmonitor.model.enums.UserRole;
 import com.subscriptionmonitor.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,13 +21,19 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public User create(User user) throws UserValidationException {
-        log.debug("Creating user: {}", user.getUsername());
+        log.info("Creating user with username: {}", user.getUsername());
         validateUser(user);
         validateUniqueUsername(user.getUsername(), null);
         validateUniqueEmail(user.getEmail(), null);
-        return userRepository.save(user);
+
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+
+        User created = userRepository.save(user);
+        log.info("User created successfully with id: {}", created.getId());
+        return created;
     }
 
     @Transactional(readOnly = true)
@@ -61,7 +68,7 @@ public class UserService {
     }
 
     public User update(User user) throws UserNotFoundException, UserValidationException {
-        log.debug("Updating user: {}", user.getId());
+        log.info("Updating user with id: {}", user.getId());
         if (user.getId() == null) {
             throw new UserValidationException("User ID cannot be null for update operation");
         }
@@ -71,15 +78,23 @@ public class UserService {
         validateUser(user);
         validateUniqueUsername(user.getUsername(), user.getId());
         validateUniqueEmail(user.getEmail(), user.getId());
-        return userRepository.save(user);
+
+        if (user.getPassword() != null && !user.getPassword().startsWith("$2a$")) {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+
+        User updated = userRepository.save(user);
+        log.info("User updated successfully: {}", updated.getId());
+        return updated;
     }
 
     public void delete(UUID id) throws UserNotFoundException {
-        log.debug("Deleting user: {}", id);
+        log.info("Deleting user with id: {}", id);
         if (!userRepository.existsById(id)) {
             throw new UserNotFoundException(id);
         }
         userRepository.deleteById(id);
+        log.info("User deleted successfully: {}", id);
     }
 
     @Transactional(readOnly = true)

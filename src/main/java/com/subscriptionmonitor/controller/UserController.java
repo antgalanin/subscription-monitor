@@ -7,14 +7,17 @@ import com.subscriptionmonitor.model.entity.User;
 import com.subscriptionmonitor.model.enums.UserRole;
 import com.subscriptionmonitor.service.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -30,12 +33,14 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#id)")
     public ResponseEntity<UserDto> getById(@PathVariable UUID id) throws UserNotFoundException {
         User user = userService.findById(id);
         return ResponseEntity.ok(toDto(user));
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserDto>> getAll() {
         List<UserDto> users = userService.findAll().stream()
                 .map(this::toDto)
@@ -56,6 +61,7 @@ public class UserController {
     }
 
     @GetMapping("/role/{role}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserDto>> getByRole(@PathVariable UserRole role) {
         List<UserDto> users = userService.findByRole(role).stream()
                 .map(this::toDto)
@@ -64,6 +70,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#id)")
     public ResponseEntity<UserDto> update(@PathVariable UUID id, @RequestBody UserDto userDto) throws UserNotFoundException, UserValidationException {
         userDto.setId(id);
         User user = toEntity(userDto);
@@ -72,6 +79,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) throws UserNotFoundException {
         userService.delete(id);
         return ResponseEntity.noContent().build();

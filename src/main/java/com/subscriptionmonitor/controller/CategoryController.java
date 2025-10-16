@@ -8,14 +8,17 @@ import com.subscriptionmonitor.model.entity.Category;
 import com.subscriptionmonitor.model.enums.CategoryType;
 import com.subscriptionmonitor.service.CategoryService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/categories")
 @RequiredArgsConstructor
@@ -79,6 +82,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable UUID id) throws CategoryNotFoundException {
         categoryService.delete(id);
         return ResponseEntity.noContent().build();

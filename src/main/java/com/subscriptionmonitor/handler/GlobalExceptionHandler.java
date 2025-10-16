@@ -4,6 +4,7 @@ import com.subscriptionmonitor.dto.ErrorResponse;
 import com.subscriptionmonitor.exception.base.EntityNotFoundException;
 import com.subscriptionmonitor.exception.base.ValidationException;
 import com.subscriptionmonitor.exception.special.AccessDeniedException;
+import com.subscriptionmonitor.exception.special.AuthenticationException;
 import com.subscriptionmonitor.exception.special.LegacyCategoryException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -76,6 +77,20 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationException(
+            AuthenticationException ex, HttpServletRequest request) {
+        log.warn("Authentication failed: {}", ex.getMessage());
+        ErrorResponse errorResponse = ErrorResponse.of(
+                HttpStatus.UNAUTHORIZED.value(),
+                HttpStatus.UNAUTHORIZED.getReasonPhrase(),
+                ex.getMessage(),
+                ex.getCode(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
