@@ -183,3 +183,49 @@
 **ErrorResponse** - DTO для ответов об ошибках
 - Поля: `status`, `error`, `message`, `code`, `timestamp`, `path`
 - JSON-форматирование timestamp
+
+---
+
+## Лабораторная работа №4 "Spring Security и логирование"
+
+### Spring Security
+
+**Конфигурация безопасности:**
+- HTTP Basic Authentication - каждый запрос содержит username и
+  password
+- Без сохранения сессий на сервере (каждый запрос проверяется
+  заново)
+- BCryptPasswordEncoder - пароли хранятся в зашифрованном виде
+- CSRF защита отключена (не нужна для REST API)
+
+**Роли:**
+- ADMIN - полный доступ
+- USER - доступ только к своим данным
+
+**Ownership проверки:**
+- `SecurityService.isOwner()` - проверяет владение ресурсом
+- `@PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#id)")` - на уровне методов
+
+**Custom обработчики:**
+- `CustomAuthenticationEntryPoint` - обработка 401 Unauthorized
+- `CustomAccessDeniedHandler` - обработка 403 Forbidden
+
+### Логирование (Logback)
+
+**Конфигурация** (`logback-spring.xml`):
+- **CONSOLE appender** - вывод в терминал (HH:mm:ss.SSS)
+- **FILE appender** - все логи в `logs/application.log` (30 дней, 1GB)
+- **ERROR_FILE appender** - только ошибки в `logs/error.log` (90 дней, 500MB)
+
+**Уровни логирования:**
+- `DEBUG` - детальная информация (пакет `com.subscriptionmonitor`)
+- `INFO` - стандартные события (Spring, Hibernate, запуск/остановка)
+- `WARN` - предупреждения (deprecated методы, некритичные проблемы)
+- `ERROR` - критичные ошибки (исключения, security нарушения)
+
+**Что логируется:**
+- Запуск и остановка приложения
+- Создание, изменение и удаление данных
+- Попытки неавторизованного доступа
+- Повторяющиеся username или email при регистрации
+- Полное описание ошибок для их устранения
