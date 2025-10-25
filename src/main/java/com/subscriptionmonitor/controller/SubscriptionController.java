@@ -6,6 +6,7 @@ import com.subscriptionmonitor.exception.notfound.SubscriptionNotFoundException;
 import com.subscriptionmonitor.exception.validation.SubscriptionValidationException;
 import com.subscriptionmonitor.model.entity.Payment;
 import com.subscriptionmonitor.model.entity.Subscription;
+import com.subscriptionmonitor.security.SecurityService;
 import com.subscriptionmonitor.service.PaymentService;
 import com.subscriptionmonitor.service.SubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +22,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,6 +39,7 @@ public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
     private final PaymentService paymentService;
+    private final SecurityService securityService;
 
     @Operation(summary = "Создать новую подписку")
     @ApiResponses({
@@ -55,6 +59,8 @@ public class SubscriptionController {
     })
     @PostMapping
     public ResponseEntity<SubscriptionDto> create(@RequestBody SubscriptionDto subscriptionDto) throws SubscriptionValidationException, PaymentNotFoundException {
+        UUID currentUserId = securityService.getCurrentUserId();
+        subscriptionDto.setUserId(currentUserId);
         Subscription subscription = toEntity(subscriptionDto);
         Subscription created = subscriptionService.create(subscription);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
@@ -66,6 +72,9 @@ public class SubscriptionController {
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not subscription owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}\"}"))),
         @ApiResponse(responseCode = "404", description = "Subscription not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"Subscription with id 123e4567-e89b-12d3-a456-426614174000 not found\",\"code\":\"SUBSCRIPTION_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}\"}"))),
@@ -74,6 +83,7 @@ public class SubscriptionController {
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}\"}")))
     })
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isSubscriptionOwner(#id)")
     public ResponseEntity<SubscriptionDto> getById(@Parameter(description = "Subscription ID") @PathVariable UUID id) throws SubscriptionNotFoundException {
         Subscription subscription = subscriptionService.findById(id);
         return ResponseEntity.ok(toDto(subscription));
@@ -91,9 +101,19 @@ public class SubscriptionController {
     })
     @GetMapping
     public ResponseEntity<List<SubscriptionDto>> getAll() {
-        List<SubscriptionDto> subscriptions = subscriptionService.findAll().stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+        UUID currentUserId = securityService.getCurrentUserId();
+        List<SubscriptionDto> subscriptions;
+
+        if (securityService.isAdmin()) {
+            subscriptions = subscriptionService.findAll().stream()
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        } else {
+            subscriptions = subscriptionService.findByUserId(currentUserId).stream()
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        }
+
         return ResponseEntity.ok(subscriptions);
     }
 
@@ -109,6 +129,12 @@ public class SubscriptionController {
     })
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<SubscriptionDto>> getByUserId(@Parameter(description = "User ID") @PathVariable UUID userId) {
+        UUID currentUserId = securityService.getCurrentUserId();
+
+        if (!securityService.isAdmin() && !currentUserId.equals(userId)) {
+            throw new AccessDeniedException("You can only access your own subscriptions");
+        }
+
         List<SubscriptionDto> subscriptions = subscriptionService.findByUserId(userId).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
@@ -129,6 +155,12 @@ public class SubscriptionController {
     public ResponseEntity<List<SubscriptionDto>> getByUserIdAndIsActive(
             @Parameter(description = "User ID") @PathVariable UUID userId,
             @Parameter(description = "Is active") @PathVariable Boolean isActive) {
+        UUID currentUserId = securityService.getCurrentUserId();
+
+        if (!securityService.isAdmin() && !currentUserId.equals(userId)) {
+            throw new AccessDeniedException("You can only access your own subscriptions");
+        }
+
         List<SubscriptionDto> subscriptions = subscriptionService
                 .findByUserIdAndIsActive(userId, isActive).stream()
                 .map(this::toDto)
@@ -148,6 +180,12 @@ public class SubscriptionController {
     })
     @GetMapping("/user/{userId}/active")
     public ResponseEntity<List<SubscriptionDto>> getActiveByUserId(@Parameter(description = "User ID") @PathVariable UUID userId) {
+        UUID currentUserId = securityService.getCurrentUserId();
+
+        if (!securityService.isAdmin() && !currentUserId.equals(userId)) {
+            throw new AccessDeniedException("You can only access your own subscriptions");
+        }
+
         List<SubscriptionDto> subscriptions = subscriptionService
                 .findActiveSubscriptionsByUserId(userId).stream()
                 .map(this::toDto)
@@ -167,9 +205,20 @@ public class SubscriptionController {
     })
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<List<SubscriptionDto>> getByCategoryId(@Parameter(description = "Category ID") @PathVariable UUID categoryId) {
-        List<SubscriptionDto> subscriptions = subscriptionService.findByCategoryId(categoryId).stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+        UUID currentUserId = securityService.getCurrentUserId();
+        List<SubscriptionDto> subscriptions;
+
+        if (securityService.isAdmin()) {
+            subscriptions = subscriptionService.findByCategoryId(categoryId).stream()
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        } else {
+            subscriptions = subscriptionService.findByCategoryId(categoryId).stream()
+                    .filter(sub -> sub.getUserId().equals(currentUserId))
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        }
+
         return ResponseEntity.ok(subscriptions);
     }
 
@@ -182,6 +231,9 @@ public class SubscriptionController {
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not subscription owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}\"}"))),
         @ApiResponse(responseCode = "404", description = "Subscription not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"Subscription with id 123e4567-e89b-12d3-a456-426614174000 not found\",\"code\":\"SUBSCRIPTION_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}\"}"))),
@@ -190,9 +242,11 @@ public class SubscriptionController {
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}\"}")))
     })
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isSubscriptionOwner(#id)")
     public ResponseEntity<SubscriptionDto> update(@Parameter(description = "Subscription ID") @PathVariable UUID id, @RequestBody SubscriptionDto subscriptionDto) throws SubscriptionNotFoundException, SubscriptionValidationException, PaymentNotFoundException {
         Subscription existing = subscriptionService.findById(id);
         subscriptionDto.setId(id);
+        subscriptionDto.setUserId(existing.getUserId());
         Subscription subscription = toEntity(subscriptionDto);
         Subscription updated = subscriptionService.update(subscription);
         return ResponseEntity.ok(toDto(updated));
@@ -204,6 +258,9 @@ public class SubscriptionController {
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}/deactivate\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not subscription owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}/deactivate\"}"))),
         @ApiResponse(responseCode = "404", description = "Subscription not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"Subscription with id 123e4567-e89b-12d3-a456-426614174000 not found\",\"code\":\"SUBSCRIPTION_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}/deactivate\"}"))),
@@ -212,6 +269,7 @@ public class SubscriptionController {
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}/deactivate\"}")))
     })
     @PatchMapping("/{id}/deactivate")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isSubscriptionOwner(#id)")
     public ResponseEntity<SubscriptionDto> deactivate(@Parameter(description = "Subscription ID") @PathVariable UUID id) throws SubscriptionNotFoundException {
         Subscription subscription = subscriptionService.deactivate(id);
         return ResponseEntity.ok(toDto(subscription));
@@ -223,6 +281,9 @@ public class SubscriptionController {
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not subscription owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}\"}"))),
         @ApiResponse(responseCode = "404", description = "Subscription not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"Subscription with id 123e4567-e89b-12d3-a456-426614174000 not found\",\"code\":\"SUBSCRIPTION_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}\"}"))),
@@ -231,6 +292,7 @@ public class SubscriptionController {
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/{id}\"}")))
     })
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isSubscriptionOwner(#id)")
     public ResponseEntity<Void> delete(@Parameter(description = "Subscription ID") @PathVariable UUID id) throws SubscriptionNotFoundException {
         subscriptionService.delete(id);
         return ResponseEntity.noContent().build();

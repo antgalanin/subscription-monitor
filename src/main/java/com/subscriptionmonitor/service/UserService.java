@@ -7,6 +7,7 @@ import com.subscriptionmonitor.model.enums.UserRole;
 import com.subscriptionmonitor.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,11 +24,30 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public User create(User user) throws UserValidationException {
-        log.info("Creating user with username: {}", user.getUsername());
+    public User register(User user) throws UserValidationException {
+        log.info("Registering new user with username: {}", user.getUsername());
         validateUser(user);
         validateUniqueUsername(user.getUsername(), null);
         validateUniqueEmail(user.getEmail(), null);
+
+        user.setRole(UserRole.USER);
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+
+        User created = userRepository.save(user);
+        log.info("User registered successfully with id: {}", created.getId());
+        return created;
+    }
+
+    public User create(User user, User currentUser) throws UserValidationException {
+        log.info("Creating user with username: {} by user: {}", user.getUsername(),
+            currentUser != null ? currentUser.getUsername() : "system");
+        validateUser(user);
+        validateUniqueUsername(user.getUsername(), null);
+        validateUniqueEmail(user.getEmail(), null);
+
+        if (currentUser != null && currentUser.getRole() != UserRole.ADMIN) {
+            user.setRole(UserRole.USER);
+        }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
@@ -67,17 +87,26 @@ public class UserService {
         return userRepository.findByRole(role);
     }
 
-    public User update(User user) throws UserNotFoundException, UserValidationException {
-        log.info("Updating user with id: {}", user.getId());
+    public User update(User user, User currentUser) throws UserNotFoundException, UserValidationException {
+        log.info("Updating user with id: {} by user: {}", user.getId(),
+            currentUser != null ? currentUser.getUsername() : "system");
+
         if (user.getId() == null) {
             throw new UserValidationException("User ID cannot be null for update operation");
         }
-        if (!userRepository.existsById(user.getId())) {
-            throw new UserNotFoundException(user.getId());
-        }
+
+        User existing = userRepository.findById(user.getId())
+                .orElseThrow(() -> new UserNotFoundException(user.getId()));
+
         validateUser(user);
         validateUniqueUsername(user.getUsername(), user.getId());
         validateUniqueEmail(user.getEmail(), user.getId());
+
+        if (currentUser != null && currentUser.getRole() != UserRole.ADMIN) {
+            if (!existing.getRole().equals(user.getRole())) {
+                throw new AccessDeniedException("Users cannot change their own role");
+            }
+        }
 
         if (user.getPassword() != null && !user.getPassword().startsWith("$2a$")) {
             user.setPassword(passwordEncoder.encode(user.getPassword()));

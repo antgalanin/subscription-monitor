@@ -5,7 +5,9 @@ import com.subscriptionmonitor.exception.notfound.CategoryNotFoundException;
 import com.subscriptionmonitor.exception.validation.CategoryValidationException;
 import com.subscriptionmonitor.exception.special.LegacyCategoryException;
 import com.subscriptionmonitor.model.entity.Category;
+import com.subscriptionmonitor.model.entity.User;
 import com.subscriptionmonitor.model.enums.CategoryType;
+import com.subscriptionmonitor.security.CategorySecurityService;
 import com.subscriptionmonitor.service.CategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -37,6 +39,7 @@ import java.util.stream.Collectors;
 public class CategoryController {
 
     private final CategoryService categoryService;
+    private final CategorySecurityService categorySecurityService;
 
     @Operation(summary = "Создать новую категорию", description = "Создает новую категорию подписок")
     @ApiResponses({
@@ -57,8 +60,9 @@ public class CategoryController {
     })
     @PostMapping
     public ResponseEntity<CategoryDto> create(@RequestBody CategoryDto categoryDto) throws CategoryValidationException, LegacyCategoryException {
+        User currentUser = categorySecurityService.getCurrentUser();
         Category category = toEntity(categoryDto);
-        Category created = categoryService.create(category);
+        Category created = categoryService.create(category, currentUser);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
@@ -161,6 +165,9 @@ public class CategoryController {
         @ApiResponse(responseCode = "400", description = "Validation failed",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":400,\"error\":\"Bad Request\",\"message\":\"Category name is required\",\"code\":\"CATEGORY_VALIDATION_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/categories/{id}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - Users can only modify their own CUSTOM categories",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Users can only modify their own categories\",\"code\":\"ACCESS_FORBIDDEN\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/categories/{id}\"}"))),
         @ApiResponse(responseCode = "404", description = "Category not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"Category with id 123e4567-e89b-12d3-a456-426614174000 not found\",\"code\":\"CATEGORY_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/categories/{id}\"}"))),
@@ -175,10 +182,12 @@ public class CategoryController {
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/categories/{id}\"}")))
     })
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @categorySecurityService.isOwner(#id)")
     public ResponseEntity<CategoryDto> update(@Parameter(description = "Category ID") @PathVariable UUID id, @RequestBody CategoryDto categoryDto) throws CategoryNotFoundException, CategoryValidationException, LegacyCategoryException {
+        User currentUser = categorySecurityService.getCurrentUser();
         categoryDto.setId(id);
         Category category = toEntity(categoryDto);
-        Category updated = categoryService.update(category);
+        Category updated = categoryService.update(category, currentUser);
         return ResponseEntity.ok(toDto(updated));
     }
 

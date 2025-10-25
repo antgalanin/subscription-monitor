@@ -5,7 +5,9 @@ import com.subscriptionmonitor.exception.notfound.PaymentNotFoundException;
 import com.subscriptionmonitor.exception.validation.PaymentValidationException;
 import com.subscriptionmonitor.model.entity.Payment;
 import com.subscriptionmonitor.model.enums.Currency;
+import com.subscriptionmonitor.security.SecurityService;
 import com.subscriptionmonitor.service.PaymentService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final SecurityService securityService;
 
     @Operation(summary = "Создать новую платежную информацию")
     @ApiResponses({
@@ -62,6 +65,9 @@ public class PaymentController {
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/{id}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not payment owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/{id}\"}"))),
         @ApiResponse(responseCode = "404", description = "Payment not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"Payment with id 123e4567-e89b-12d3-a456-426614174000 not found\",\"code\":\"PAYMENT_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/{id}\"}"))),
@@ -70,6 +76,7 @@ public class PaymentController {
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/{id}\"}")))
     })
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isPaymentOwner(#id)")
     public ResponseEntity<PaymentDto> getById(@Parameter(description = "Payment ID") @PathVariable UUID id) throws PaymentNotFoundException {
         Payment payment = paymentService.findById(id);
         return ResponseEntity.ok(toDto(payment));
@@ -87,9 +94,20 @@ public class PaymentController {
     })
     @GetMapping
     public ResponseEntity<List<PaymentDto>> getAll() {
-        List<PaymentDto> payments = paymentService.findAll().stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+        List<PaymentDto> payments;
+
+        if (securityService.isAdmin()) {
+            payments = paymentService.findAll().stream()
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        } else {
+            java.util.Set<UUID> allowedPaymentIds = securityService.getPaymentIdsForCurrentUser();
+            payments = paymentService.findAll().stream()
+                    .filter(payment -> allowedPaymentIds.contains(payment.getId()))
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        }
+
         return ResponseEntity.ok(payments);
     }
 
@@ -105,9 +123,20 @@ public class PaymentController {
     })
     @GetMapping("/currency/{currency}")
     public ResponseEntity<List<PaymentDto>> getByCurrency(@Parameter(description = "Currency") @PathVariable Currency currency) {
-        List<PaymentDto> payments = paymentService.findByCurrency(currency).stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+        List<PaymentDto> payments;
+
+        if (securityService.isAdmin()) {
+            payments = paymentService.findByCurrency(currency).stream()
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        } else {
+            java.util.Set<UUID> allowedPaymentIds = securityService.getPaymentIdsForCurrentUser();
+            payments = paymentService.findByCurrency(currency).stream()
+                    .filter(payment -> allowedPaymentIds.contains(payment.getId()))
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        }
+
         return ResponseEntity.ok(payments);
     }
 
@@ -125,9 +154,20 @@ public class PaymentController {
     public ResponseEntity<List<PaymentDto>> getByBillingDateRange(
             @Parameter(description = "Start date") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "End date") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        List<PaymentDto> payments = paymentService.findByNextBillingDateBetween(startDate, endDate).stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+        List<PaymentDto> payments;
+
+        if (securityService.isAdmin()) {
+            payments = paymentService.findByNextBillingDateBetween(startDate, endDate).stream()
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        } else {
+            java.util.Set<UUID> allowedPaymentIds = securityService.getPaymentIdsForCurrentUser();
+            payments = paymentService.findByNextBillingDateBetween(startDate, endDate).stream()
+                    .filter(payment -> allowedPaymentIds.contains(payment.getId()))
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        }
+
         return ResponseEntity.ok(payments);
     }
 
@@ -144,9 +184,20 @@ public class PaymentController {
     @GetMapping("/billing-date-before")
     public ResponseEntity<List<PaymentDto>> getByBillingDateBefore(
             @Parameter(description = "Date") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        List<PaymentDto> payments = paymentService.findByNextBillingDateBefore(date).stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+        List<PaymentDto> payments;
+
+        if (securityService.isAdmin()) {
+            payments = paymentService.findByNextBillingDateBefore(date).stream()
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        } else {
+            java.util.Set<UUID> allowedPaymentIds = securityService.getPaymentIdsForCurrentUser();
+            payments = paymentService.findByNextBillingDateBefore(date).stream()
+                    .filter(payment -> allowedPaymentIds.contains(payment.getId()))
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+        }
+
         return ResponseEntity.ok(payments);
     }
 
@@ -159,6 +210,9 @@ public class PaymentController {
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/{id}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not payment owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/{id}\"}"))),
         @ApiResponse(responseCode = "404", description = "Payment not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"Payment with id 123e4567-e89b-12d3-a456-426614174000 not found\",\"code\":\"PAYMENT_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/{id}\"}"))),
@@ -167,6 +221,7 @@ public class PaymentController {
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/{id}\"}")))
     })
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isPaymentOwner(#id)")
     public ResponseEntity<PaymentDto> update(@Parameter(description = "Payment ID") @PathVariable UUID id, @RequestBody PaymentDto paymentDto) throws PaymentNotFoundException, PaymentValidationException {
         Payment existing = paymentService.findById(id);
         paymentDto.setId(id);
@@ -181,6 +236,9 @@ public class PaymentController {
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/{id}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not payment owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/{id}\"}"))),
         @ApiResponse(responseCode = "404", description = "Payment not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"Payment with id 123e4567-e89b-12d3-a456-426614174000 not found\",\"code\":\"PAYMENT_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/{id}\"}"))),
@@ -189,6 +247,7 @@ public class PaymentController {
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/{id}\"}")))
     })
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isPaymentOwner(#id)")
     public ResponseEntity<Void> delete(@Parameter(description = "Payment ID") @PathVariable UUID id) throws PaymentNotFoundException {
         paymentService.delete(id);
         return ResponseEntity.noContent().build();

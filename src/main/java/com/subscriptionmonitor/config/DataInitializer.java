@@ -46,7 +46,7 @@ public class DataInitializer implements CommandLineRunner {
                         UserRole.ADMIN,
                         3
                 );
-                userService.create(admin);
+                userService.create(admin, null);
                 log.info("Admin user created successfully");
             } else {
                 log.info("Admin user already exists, skipping creation");
@@ -76,7 +76,7 @@ public class DataInitializer implements CommandLineRunner {
             try {
                 if (categoryRepository.findByNameAndType(categoryName, CategoryType.SYSTEM).isEmpty()) {
                     Category category = new Category(categoryName, CategoryType.SYSTEM, null);
-                    categoryService.create(category);
+                    categoryService.create(category, null);
                     log.info("System category '{}' created successfully", categoryName);
                 } else {
                     log.debug("System category '{}' already exists, skipping", categoryName);

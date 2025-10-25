@@ -5,6 +5,7 @@ import com.subscriptionmonitor.exception.notfound.UserNotFoundException;
 import com.subscriptionmonitor.exception.validation.UserValidationException;
 import com.subscriptionmonitor.model.entity.User;
 import com.subscriptionmonitor.model.enums.UserRole;
+import com.subscriptionmonitor.security.SecurityService;
 import com.subscriptionmonitor.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -36,8 +37,9 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserService userService;
+    private final SecurityService securityService;
 
-    @Operation(summary = "Создать нового пользователя", description = "Регистрация нового пользователя в системе")
+    @Operation(summary = "Создать нового пользователя (ADMIN only)", description = "Создание пользователя администратором. ADMIN может назначить любую роль. Для публичной регистрации используйте POST /api/auth/register")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "User successfully created",
             content = @Content(schema = @Schema(implementation = UserDto.class))),
@@ -52,9 +54,11 @@ public class UserController {
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users\"}")))
     })
     @PostMapping
-    public ResponseEntity<UserDto> create(@RequestBody UserDto userDto) throws UserValidationException {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserDto> create(@RequestBody UserDto userDto) throws UserValidationException, UserNotFoundException {
+        User currentUser = userService.findById(securityService.getCurrentUserId());
         User user = toEntity(userDto);
-        User created = userService.create(user);
+        User created = userService.create(user, currentUser);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
@@ -189,9 +193,10 @@ public class UserController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#id)")
     public ResponseEntity<UserDto> update(@Parameter(description = "User ID") @PathVariable UUID id, @RequestBody UserDto userDto) throws UserNotFoundException, UserValidationException {
+        User currentUser = userService.findById(securityService.getCurrentUserId());
         userDto.setId(id);
         User user = toEntity(userDto);
-        User updated = userService.update(user);
+        User updated = userService.update(user, currentUser);
         return ResponseEntity.ok(toDto(updated));
     }
 
