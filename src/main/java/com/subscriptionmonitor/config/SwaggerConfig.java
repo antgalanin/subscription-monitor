@@ -6,7 +6,13 @@ import io.swagger.v3.oas.annotations.info.Contact;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.servers.Server;
+import io.swagger.v3.oas.models.tags.Tag;
+import org.springdoc.core.customizers.OpenApiCustomizer;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @OpenAPIDefinition(
@@ -35,4 +41,47 @@ import org.springframework.context.annotation.Configuration;
     description = "HTTP Basic Authentication. Используйте username и password зарегистрированного пользователя."
 )
 public class SwaggerConfig {
+
+    @Bean
+    public OpenApiCustomizer sortTagsAlphabetically() {
+        return openApi -> {
+            List<Tag> tags = Arrays.asList(
+                    new Tag().name("Authentication").description("API для аутентификации и регистрации (публичные endpoints)"),
+                    new Tag().name("Users").description("API для управления пользователями системы"),
+                    new Tag().name("Categories").description("API для управления категориями подписок"),
+                    new Tag().name("Payments").description("API для управления платежной информацией"),
+                    new Tag().name("Subscriptions").description("API для управления подписками"),
+                    new Tag().name("Notifications").description("API для управления уведомлениями о предстоящих списаниях. Автоматически создаются при добавлении подписки.")
+            );
+            openApi.setTags(tags);
+
+            if (openApi.getComponents() != null && openApi.getComponents().getSchemas() != null) {
+                var schemas = openApi.getComponents().getSchemas();
+                var sortedSchemas = new java.util.LinkedHashMap<String, io.swagger.v3.oas.models.media.Schema>();
+
+                List<String> schemaOrder = Arrays.asList(
+                        "UserDto",
+                        "CategoryDto",
+                        "PaymentDto",
+                        "SubscriptionDto",
+                        "NotificationDto",
+                        "ErrorResponse"
+                );
+
+                for (String schemaName : schemaOrder) {
+                    if (schemas.containsKey(schemaName)) {
+                        sortedSchemas.put(schemaName, schemas.get(schemaName));
+                    }
+                }
+
+                schemas.forEach((key, value) -> {
+                    if (!sortedSchemas.containsKey(key)) {
+                        sortedSchemas.put(key, value);
+                    }
+                });
+
+                openApi.getComponents().setSchemas(sortedSchemas);
+            }
+        };
+    }
 }
