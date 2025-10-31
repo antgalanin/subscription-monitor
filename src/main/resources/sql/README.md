@@ -27,7 +27,7 @@ sql/
 ├── create_tables.sql        # Создание 5 таблиц
 ├── constraints_java.sql     # [JAVA MODE] Constraints без триггеров
 ├── constraints_full.sql     # [FULL MODE] Constraints + триггеры
-├── create_views.sql         # Аналитические витрины (9 views + 1 materialized)
+├── create_views.sql         # Аналитические витрины (10 views + 1 materialized)
 ├── create_indexes.sql       # Индексы для оптимизации (28 индексов)
 ├── create_roles.sql         # Роли БД (2 роли)
 ├── create_rls_policies.sql  # Row Level Security (FULL MODE)
@@ -135,7 +135,8 @@ FULL MODE реализует полную бизнес-логику на уро�
 |-------------------------------|-------------------------------------------------------------|
 | `user_subscriptions_summary`  | Сводка подписок с нормализацией к месячным тратам         |
 | `upcoming_payments`           | Предстоящие платежи с категоризацией срочности             |
-| `category_statistics`         | Статистика по категориям                                    |
+| `category_statistics`         | Глобальная статистика по категориям (все пользователи)     |
+| `user_category_statistics`    | Персонализированная статистика категорий по пользователям  |
 | `user_activity`               | Активность пользователей                                    |
 | `top_subscriptions`           | Топ популярных подписок                                     |
 | `notification_analysis`       | Анализ уведомлений                                          |

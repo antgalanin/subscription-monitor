@@ -254,7 +254,37 @@ COMMENT ON VIEW analytics.spending_trends IS
 'Прогноз расходов на ближайшие 6 месяцев по пользователям';
 
 -- =============================================================================
--- Витрина 9: Самые дорогие подписки
+-- Витрина 9: Статистика категорий по пользователям
+-- =============================================================================
+
+CREATE OR REPLACE VIEW analytics.user_category_statistics AS
+SELECT
+    u.id AS user_id,
+    u.username,
+    c.id AS category_id,
+    c.name AS category_name,
+    c.type AS category_type,
+    COUNT(s.id) AS total_subscriptions,
+    COUNT(s.id) FILTER (WHERE s.is_active = TRUE) AS active_subscriptions,
+    1 AS unique_users,
+    COALESCE(SUM(p.cost) FILTER (WHERE s.is_active = TRUE AND p.currency = 'RUB'), 0) AS total_cost_rub,
+    COALESCE(SUM(p.cost) FILTER (WHERE s.is_active = TRUE AND p.currency = 'USD'), 0) AS total_cost_usd,
+    COALESCE(SUM(p.cost) FILTER (WHERE s.is_active = TRUE AND p.currency = 'EUR'), 0) AS total_cost_eur,
+    COALESCE(AVG(p.cost) FILTER (WHERE s.is_active = TRUE), 0) AS avg_cost,
+    ROUND(AVG(p.billing_period_days) FILTER (WHERE s.is_active = TRUE), 0) AS avg_billing_days
+FROM users u
+CROSS JOIN categories c
+LEFT JOIN subscriptions s ON c.id = s.category_id AND s.user_id = u.id
+LEFT JOIN payments p ON s.payment_id = p.id
+GROUP BY u.id, u.username, c.id, c.name, c.type
+HAVING COUNT(s.id) > 0
+ORDER BY u.id, active_subscriptions DESC;
+
+COMMENT ON VIEW analytics.user_category_statistics IS
+'Статистика категорий персонализированная для каждого пользователя';
+
+-- =============================================================================
+-- Витрина 10: Самые дорогие подписки
 -- =============================================================================
 
 CREATE OR REPLACE VIEW analytics.expensive_subscriptions AS
