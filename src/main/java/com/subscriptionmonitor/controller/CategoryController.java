@@ -183,7 +183,7 @@ public class CategoryController {
 
     @Operation(
             summary = "Получить категории пользователя по ID",
-            description = "Возвращает все категории пользователя по его ID. Доступ: ADMIN - категории любого пользователя, USER - свои кастомные и свои устаревшие"
+            description = "Возвращает все категории пользователя по его ID. Доступ: ADMIN - категории любого пользователя, USER - свои кастомные и свои устаревшие."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
@@ -208,7 +208,7 @@ public class CategoryController {
 
     @Operation(
             summary = "Получить категории по типу и пользователю",
-            description = "Возвращает все доступные категории по типу и ID пользователя. Доступ: ADMIN - категории любого пользователя, USER - свои кастомные и свои устаревшие"
+            description = "Возвращает все доступные категории по типу и ID пользователя. Доступ: ADMIN - категории любого пользователя, USER - свои кастомные и свои устаревшие."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
@@ -235,7 +235,7 @@ public class CategoryController {
 
     @Operation(
             summary = "Обновить категорию",
-            description = "Обновляет категорию. Доступ: ADMIN - системные и кастомные (для любого пользователя), USER - свои кастомные"
+            description = "Обновляет категорию. Доступ: ADMIN - системные и кастомные (для любого пользователя), USER - свои кастомные."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Category updated successfully"),
@@ -270,7 +270,7 @@ public class CategoryController {
 
     @Operation(
             summary = "Удалить категорию по ID",
-            description = "Удаляет категорию по ее ID. Доступ: ADMIN - любые категории, USER - свои кастомные и свои устаревшие"
+            description = "Удаляет категорию по ее ID. Устаревшие категории удалять нельзя. Доступ: ADMIN - системные категории и свои кастомные, USER - свои кастомные."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Category deleted successfully"),
@@ -283,6 +283,9 @@ public class CategoryController {
         @ApiResponse(responseCode = "404", description = "Category not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"Category with id 123e4567-e89b-12d3-a456-426614174000 not found\",\"code\":\"CATEGORY_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/categories/{id}\"}"))),
+        @ApiResponse(responseCode = "410", description = "Cannot delete LEGACY category",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":410,\"error\":\"Gone\",\"message\":\"Category with id 123e4567-e89b-12d3-a456-426614174000 is LEGACY and cannot be deleted\",\"code\":\"CATEGORY_LEGACY\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/categories/{id}\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/categories/{id}\"}")))
