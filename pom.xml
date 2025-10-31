@@ -24,8 +24,8 @@
   <properties>
     <java.version>24</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <javafx.version>21.0.1</javafx.version>
     <jackson.version>2.18.2</jackson.version>
+    <flatlaf.version>3.5.4</flatlaf.version>
   </properties>
 
   <dependencies>
@@ -75,25 +75,11 @@
       <version>2.7.0</version>
     </dependency>
 
-    <!-- JavaFX Controls -->
+    <!-- FlatLaf - Modern Look and Feel for Swing -->
     <dependency>
-      <groupId>org.openjfx</groupId>
-      <artifactId>javafx-controls</artifactId>
-      <version>${javafx.version}</version>
-    </dependency>
-
-    <!-- JavaFX FXML -->
-    <dependency>
-      <groupId>org.openjfx</groupId>
-      <artifactId>javafx-fxml</artifactId>
-      <version>${javafx.version}</version>
-    </dependency>
-
-    <!-- JavaFX Graphics -->
-    <dependency>
-      <groupId>org.openjfx</groupId>
-      <artifactId>javafx-graphics</artifactId>
-      <version>${javafx.version}</version>
+      <groupId>com.formdev</groupId>
+      <artifactId>flatlaf</artifactId>
+      <version>${flatlaf.version}</version>
     </dependency>
 
     <!-- Jackson for JSON processing (REST API client) -->
@@ -151,13 +137,13 @@
         </configuration>
       </plugin>
 
-      <!-- JavaFX Maven Plugin -->
+      <!-- Exec Maven Plugin for GUI -->
       <plugin>
-        <groupId>org.openjfx</groupId>
-        <artifactId>javafx-maven-plugin</artifactId>
-        <version>0.0.8</version>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
         <configuration>
-          <mainClass>com.subscriptionmonitor.gui.JavaFXApplication</mainClass>
+          <mainClass>com.subscriptionmonitor.gui.SubscriptionMonitorGUI</mainClass>
         </configuration>
       </plugin>
     </plugins>

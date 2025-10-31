@@ -39,8 +39,8 @@ public class NotificationController {
     private final SecurityService securityService;
 
     @Operation(
-        summary = "Создать новое уведомление",
-        description = "Создает новое уведомление о предстоящем платеже. Требуется указать ID пользователя, ID подписки, дату уведомления, тип и сообщение. В большинстве случаев уведомления создаются автоматически при создании подписки."
+            summary = "Создать новое уведомление",
+            description = "Создание нового уведомления для текущего пользователя. Обычно уведомления создаются автоматически. Доступ: ADMIN и USER - для своих уведомлений."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Notification created successfully",
@@ -51,11 +51,15 @@ public class NotificationController {
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}")))
     })
     @PostMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<NotificationDto> create(@RequestBody NotificationDto notificationDto) throws NotificationValidationException {
         UUID currentUserId = securityService.getCurrentUserId();
         notificationDto.setUserId(currentUserId);
@@ -65,8 +69,8 @@ public class NotificationController {
     }
 
     @Operation(
-        summary = "Получить уведомление по ID",
-        description = "Возвращает информацию об уведомлении по его уникальному идентификатору."
+            summary = "Получить уведомление по ID",
+            description = "Возвращает уведомление по его ID. Доступ: ADMIN - любые уведомления, USER - только свои уведомления."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Notification found",
@@ -94,19 +98,23 @@ public class NotificationController {
     }
 
     @Operation(
-        summary = "Получить все уведомления",
-        description = "Возвращает список всех уведомлений в системе."
+            summary = "Получить все уведомления",
+            description = "Возвращает список всех уведомлений. Доступ: ADMIN - все уведомления, USER - только свои уведомления."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}")))
     })
     @GetMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<List<NotificationDto>> getAll() {
         UUID currentUserId = securityService.getCurrentUserId();
         List<NotificationDto> notifications;
@@ -126,19 +134,23 @@ public class NotificationController {
     }
 
     @Operation(
-        summary = "Получить уведомления пользователя",
-        description = "Возвращает все уведомления (отправленные и неотправленные) указанного пользователя."
+            summary = "Получить уведомления пользователя",
+            description = "Возвращает все уведомления указанного пользователя. Доступ: ADMIN - уведомления любого пользователя, USER - только свои уведомления."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}"))),
+                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/user/{userId}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not notification owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"You can only access your own notifications\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/user/{userId}\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}")))
+                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/user/{userId}\"}")))
     })
     @GetMapping("/user/{userId}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#userId)")
     public ResponseEntity<List<NotificationDto>> getByUserId(
         @Parameter(description = "UUID пользователя") @PathVariable UUID userId
     ) {
@@ -155,19 +167,23 @@ public class NotificationController {
     }
 
     @Operation(
-        summary = "Получить уведомления по подписке",
-        description = "Возвращает все уведомления, связанные с указанной подпиской."
+            summary = "Получить уведомления по подписке",
+            description = "Возвращает уведомления связанные с указанной подпиской. Доступ: ADMIN - любые подписки, USER - только свои подписки."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}"))),
+                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/subscription/{subscriptionId}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not subscription owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"You can only access notifications for your own subscriptions\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/subscription/{subscriptionId}\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}")))
+                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/subscription/{subscriptionId}\"}")))
     })
     @GetMapping("/subscription/{subscriptionId}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isSubscriptionOwner(#subscriptionId)")
     public ResponseEntity<List<NotificationDto>> getBySubscriptionId(
         @Parameter(description = "UUID подписки") @PathVariable UUID subscriptionId
     ) {
@@ -182,19 +198,23 @@ public class NotificationController {
     }
 
     @Operation(
-        summary = "Получить уведомления по статусу отправки",
-        description = "Возвращает уведомления с указанным статусом отправки (true - отправленные, false - неотправленные)."
+            summary = "Получить уведомления по статусу отправки",
+            description = "Возвращает уведомления по статусу отправки (true/false). Доступ: ADMIN - все уведомления, USER - только свои уведомления."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}")))
     })
     @GetMapping("/sent/{isSent}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<List<NotificationDto>> getBySentStatus(
         @Parameter(description = "Is sent status (true/false)", example = "true") @PathVariable Boolean isSent
     ) {
@@ -216,19 +236,23 @@ public class NotificationController {
     }
 
     @Operation(
-        summary = "Получить уведомления пользователя по типу",
-        description = "Возвращает уведомления указанного пользователя с указанным типом (EMAIL, SMS, PUSH и т.д.)."
+            summary = "Получить уведомления пользователя по типу",
+            description = "Возвращает уведомления пользователя с указанным типом. Доступ: ADMIN - уведомления любого пользователя, USER - только свои уведомления."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}"))),
+                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/user/{userId}/type/{type}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not notification owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"You can only access your own notifications\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/user/{userId}/type/{type}\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}")))
+                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/user/{userId}/type/{type}\"}")))
     })
     @GetMapping("/user/{userId}/type/{type}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#userId)")
     public ResponseEntity<List<NotificationDto>> getByUserIdAndType(
             @Parameter(description = "UUID пользователя") @PathVariable UUID userId,
             @Parameter(description = "Тип уведомления (EMAIL, SMS, PUSH и т.д.)") @PathVariable NotificationType type) {
@@ -245,19 +269,49 @@ public class NotificationController {
     }
 
     @Operation(
-        summary = "Получить ожидающие уведомления",
-        description = "Возвращает все неотправленные уведомления (isSent = false). Полезно для обработки очереди уведомлений."
+            summary = "Получить полученные уведомления текущего пользователя",
+            description = "Возвращает уведомления текущего пользователя с наступившей датой. Доступ: ADMIN и USER - только свои уведомления."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Received notifications retrieved successfully"),
+        @ApiResponse(responseCode = "401", description = "Authentication required",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/my/received\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/my/received\"}"))),
+        @ApiResponse(responseCode = "500", description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/my/received\"}")))
+    })
+    @GetMapping("/my/received")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<List<NotificationDto>> getMyReceived() {
+        UUID currentUserId = securityService.getCurrentUserId();
+        List<NotificationDto> notifications = notificationService.findReceivedByUserId(currentUserId).stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(notifications);
+    }
+
+    @Operation(
+            summary = "Получить ожидающие уведомления",
+            description = "Возвращает неотправленные уведомления (isSent = false). Доступ: ADMIN - все ожидающие, USER - только свои."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Pending notifications retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/pending\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/pending\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/pending\"}")))
     })
     @GetMapping("/pending")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<List<NotificationDto>> getPending() {
         UUID currentUserId = securityService.getCurrentUserId();
         List<NotificationDto> notifications;
@@ -277,8 +331,31 @@ public class NotificationController {
     }
 
     @Operation(
-        summary = "Пометить уведомление как отправленное",
-        description = "Изменяет статус уведомления на отправленное (isSent = true). Используется после успешной отправки уведомления пользователю."
+            summary = "Пометить просроченные уведомления как отправленные",
+            description = "Помечает просроченные уведомления как отправленные (isSent = true). Доступ: только ADMIN."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Pending notifications marked as sent"),
+        @ApiResponse(responseCode = "401", description = "Authentication required",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/mark-pending-sent\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - admin role required",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/mark-pending-sent\"}"))),
+        @ApiResponse(responseCode = "500", description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/mark-pending-sent\"}")))
+    })
+    @PostMapping("/mark-pending-sent")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Integer> markPendingAsSent() {
+        int marked = notificationService.markPendingAsSent();
+        return ResponseEntity.ok(marked);
+    }
+
+    @Operation(
+            summary = "Пометить уведомление как отправленное",
+            description = "Изменяет статус уведомления на отправленное (isSent = true). Доступ: ADMIN - любые уведомления, USER - только свои уведомления."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Notification marked as sent successfully"),
@@ -305,8 +382,8 @@ public class NotificationController {
     }
 
     @Operation(
-        summary = "Обновить уведомление",
-        description = "Обновляет существующее уведомление. Можно изменить дату уведомления, тип, сообщение или статус отправки."
+            summary = "Обновить уведомление",
+            description = "Обновляет данные уведомления по его ID. Доступ: ADMIN - любые уведомления, USER - только свои уведомления."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Notification updated successfully",
@@ -343,8 +420,8 @@ public class NotificationController {
     }
 
     @Operation(
-        summary = "Удалить уведомление",
-        description = "Полностью удаляет уведомление из системы."
+            summary = "Удалить уведомление",
+            description = "Удаляет уведомление по его ID. Доступ: ADMIN - любые уведомления, USER - только свои уведомления."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Notification deleted successfully"),

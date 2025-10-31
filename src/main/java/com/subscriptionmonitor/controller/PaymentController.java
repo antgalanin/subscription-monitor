@@ -39,7 +39,10 @@ public class PaymentController {
     private final PaymentService paymentService;
     private final SecurityService securityService;
 
-    @Operation(summary = "Создать новую платежную информацию")
+    @Operation(
+            summary = "Создать новую платежную информацию",
+            description = "Создание новой платежной информации для подписки. Доступ: ADMIN и USER - для своих подписок."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Payment created successfully"),
         @ApiResponse(responseCode = "400", description = "Validation failed",
@@ -48,18 +51,25 @@ public class PaymentController {
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments\"}")))
     })
     @PostMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<PaymentDto> create(@RequestBody PaymentDto paymentDto) throws PaymentValidationException {
         Payment payment = toEntity(paymentDto);
         Payment created = paymentService.create(payment);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
-    @Operation(summary = "Получить платежную информацию по ID")
+    @Operation(
+            summary = "Получить платежную информацию по ID",
+            description = "Возвращает платежную информацию по ее ID. Доступ: ADMIN - любые платежи, USER - только платежи своих подписок."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Payment found"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
@@ -82,17 +92,24 @@ public class PaymentController {
         return ResponseEntity.ok(toDto(payment));
     }
 
-    @Operation(summary = "Получить всю платежную информацию")
+    @Operation(
+            summary = "Получить всю платежную информацию",
+            description = "Возвращает список всех платежей. Доступ: ADMIN - все платежи, USER - только платежи своих подписок."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments\"}")))
     })
     @GetMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<List<PaymentDto>> getAll() {
         List<PaymentDto> payments;
 
@@ -111,17 +128,24 @@ public class PaymentController {
         return ResponseEntity.ok(payments);
     }
 
-    @Operation(summary = "Получить платежную информацию по валюте")
+    @Operation(
+            summary = "Получить платежную информацию по валюте",
+            description = "Возвращает список платежей с указанной валютой. Доступ: ADMIN - все платежи, USER - только платежи своих подписок."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/currency/{currency}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/currency/{currency}\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/currency/{currency}\"}")))
     })
     @GetMapping("/currency/{currency}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<List<PaymentDto>> getByCurrency(@Parameter(description = "Currency") @PathVariable Currency currency) {
         List<PaymentDto> payments;
 
@@ -140,17 +164,24 @@ public class PaymentController {
         return ResponseEntity.ok(payments);
     }
 
-    @Operation(summary = "Получить платежную информацию по диапазону дат")
+    @Operation(
+            summary = "Получить платежную информацию по диапазону дат",
+            description = "Возвращает платежи с датой следующего списания в указанном диапазоне. Доступ: ADMIN - все платежи, USER - только платежи своих подписок."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/billing-date-range\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/billing-date-range\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/billing-date-range\"}")))
     })
     @GetMapping("/billing-date-range")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<List<PaymentDto>> getByBillingDateRange(
             @Parameter(description = "Start date") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @Parameter(description = "End date") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -171,17 +202,24 @@ public class PaymentController {
         return ResponseEntity.ok(payments);
     }
 
-    @Operation(summary = "Получить платежную информацию до указанной даты")
+    @Operation(
+            summary = "Получить платежную информацию до указанной даты",
+            description = "Возвращает платежи с датой следующего списания до указанной даты. Доступ: ADMIN - все платежи, USER - только платежи своих подписок."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/billing-date-before\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/billing-date-before\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/billing-date-before\"}")))
     })
     @GetMapping("/billing-date-before")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<List<PaymentDto>> getByBillingDateBefore(
             @Parameter(description = "Date") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         List<PaymentDto> payments;
@@ -201,7 +239,10 @@ public class PaymentController {
         return ResponseEntity.ok(payments);
     }
 
-    @Operation(summary = "Обновить платежную информацию")
+    @Operation(
+            summary = "Обновить платежную информацию",
+            description = "Обновляет платежную информацию по ее ID. Доступ: ADMIN - любые платежи, USER - только платежи своих подписок."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Payment updated successfully"),
         @ApiResponse(responseCode = "400", description = "Validation failed",
@@ -230,7 +271,10 @@ public class PaymentController {
         return ResponseEntity.ok(toDto(updated));
     }
 
-    @Operation(summary = "Удалить платежную информацию")
+    @Operation(
+            summary = "Удалить платежную информацию",
+            description = "Удаляет платежную информацию по ее ID. Доступ: ADMIN - любые платежи, USER - только платежи своих подписок."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Payment deleted successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",

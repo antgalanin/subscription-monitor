@@ -46,12 +46,13 @@ public class SwaggerConfig {
     public OpenApiCustomizer sortTagsAlphabetically() {
         return openApi -> {
             List<Tag> tags = Arrays.asList(
-                    new Tag().name("Authentication").description("API для аутентификации и регистрации (публичные endpoints)"),
+                    new Tag().name("Authentication").description("API для аутентификации и регистрации"),
                     new Tag().name("Users").description("API для управления пользователями системы"),
                     new Tag().name("Categories").description("API для управления категориями подписок"),
-                    new Tag().name("Payments").description("API для управления платежной информацией"),
                     new Tag().name("Subscriptions").description("API для управления подписками"),
-                    new Tag().name("Notifications").description("API для управления уведомлениями о предстоящих списаниях. Автоматически создаются при добавлении подписки.")
+                    new Tag().name("Payments").description("API для управления платежной информацией"),
+                    new Tag().name("Notifications").description("API для управления уведомлениями о предстоящих списаниях. Автоматически создаются при добавлении подписки."),
+                    new Tag().name("Analytics").description("API для получения аналитических данных и статистики")
             );
             openApi.setTags(tags);
 
@@ -62,9 +63,15 @@ public class SwaggerConfig {
                 List<String> schemaOrder = Arrays.asList(
                         "UserDto",
                         "CategoryDto",
-                        "PaymentDto",
                         "SubscriptionDto",
+                        "PaymentDto",
                         "NotificationDto",
+                        "ChangePasswordRequest",
+                        "UpdateEmailRequest",
+                        "UpdateSubscriptionRequest",
+                        "UserStatisticsDto",
+                        "CategoryStatisticsDto",
+                        "UpcomingPaymentDto",
                         "ErrorResponse"
                 );
 

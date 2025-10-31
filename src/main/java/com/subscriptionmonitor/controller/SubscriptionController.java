@@ -1,6 +1,7 @@
 package com.subscriptionmonitor.controller;
 
 import com.subscriptionmonitor.dto.SubscriptionDto;
+import com.subscriptionmonitor.dto.UpdateSubscriptionRequest;
 import com.subscriptionmonitor.exception.notfound.PaymentNotFoundException;
 import com.subscriptionmonitor.exception.notfound.SubscriptionNotFoundException;
 import com.subscriptionmonitor.exception.validation.SubscriptionValidationException;
@@ -41,7 +42,10 @@ public class SubscriptionController {
     private final PaymentService paymentService;
     private final SecurityService securityService;
 
-    @Operation(summary = "Создать новую подписку")
+    @Operation(
+            summary = "Создать новую подписку",
+            description = "Создание новой подписки для текущего пользователя. Доступ: ADMIN и USER - для своих подписок."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Subscription created successfully"),
         @ApiResponse(responseCode = "400", description = "Validation failed",
@@ -50,6 +54,9 @@ public class SubscriptionController {
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions\"}"))),
         @ApiResponse(responseCode = "404", description = "Payment not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"Payment with id 123e4567-e89b-12d3-a456-426614174000 not found\",\"code\":\"PAYMENT_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions\"}"))),
@@ -58,6 +65,7 @@ public class SubscriptionController {
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions\"}")))
     })
     @PostMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<SubscriptionDto> create(@RequestBody SubscriptionDto subscriptionDto) throws SubscriptionValidationException, PaymentNotFoundException {
         UUID currentUserId = securityService.getCurrentUserId();
         subscriptionDto.setUserId(currentUserId);
@@ -66,7 +74,10 @@ public class SubscriptionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
-    @Operation(summary = "Получить подписку по ID")
+    @Operation(
+            summary = "Получить подписку по ID",
+            description = "Возвращает подписку по ее ID. Доступ: ADMIN - любые подписки, USER - только свои подписки."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Subscription found"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
@@ -89,17 +100,24 @@ public class SubscriptionController {
         return ResponseEntity.ok(toDto(subscription));
     }
 
-    @Operation(summary = "Получить все подписки")
+    @Operation(
+            summary = "Получить все подписки",
+            description = "Возвращает список всех подписок. Доступ: ADMIN - все подписки, USER - только свои подписки."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions\"}")))
     })
     @GetMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<List<SubscriptionDto>> getAll() {
         UUID currentUserId = securityService.getCurrentUserId();
         List<SubscriptionDto> subscriptions;
@@ -117,17 +135,24 @@ public class SubscriptionController {
         return ResponseEntity.ok(subscriptions);
     }
 
-    @Operation(summary = "Получить подписки пользователя")
+    @Operation(
+            summary = "Получить подписки пользователя",
+            description = "Возвращает список подписок указанного пользователя. Доступ: ADMIN - подписки любого пользователя, USER - только свои подписки."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/user/{userId}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not subscription owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"You can only access your own subscriptions\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/user/{userId}\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/user/{userId}\"}")))
     })
     @GetMapping("/user/{userId}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#userId)")
     public ResponseEntity<List<SubscriptionDto>> getByUserId(@Parameter(description = "User ID") @PathVariable UUID userId) {
         UUID currentUserId = securityService.getCurrentUserId();
 
@@ -141,17 +166,24 @@ public class SubscriptionController {
         return ResponseEntity.ok(subscriptions);
     }
 
-    @Operation(summary = "Получить подписки пользователя по статусу активности")
+    @Operation(
+            summary = "Получить подписки пользователя по статусу активности",
+            description = "Возвращает подписки указанного пользователя с фильтром по статусу активности. Доступ: ADMIN - подписки любого пользователя, USER - только свои подписки."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/user/{userId}/active/{isActive}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not subscription owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"You can only access your own subscriptions\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/user/{userId}/active/{isActive}\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/user/{userId}/active/{isActive}\"}")))
     })
     @GetMapping("/user/{userId}/active/{isActive}")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#userId)")
     public ResponseEntity<List<SubscriptionDto>> getByUserIdAndIsActive(
             @Parameter(description = "User ID") @PathVariable UUID userId,
             @Parameter(description = "Is active") @PathVariable Boolean isActive) {
@@ -168,17 +200,24 @@ public class SubscriptionController {
         return ResponseEntity.ok(subscriptions);
     }
 
-    @Operation(summary = "Получить активные подписки пользователя")
+    @Operation(
+            summary = "Получить активные подписки пользователя",
+            description = "Возвращает только активные подписки указанного пользователя. Доступ: ADMIN - подписки любого пользователя, USER - только свои подписки."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/user/{userId}/active\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not subscription owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"You can only access your own subscriptions\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/user/{userId}/active\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/user/{userId}/active\"}")))
     })
     @GetMapping("/user/{userId}/active")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#userId)")
     public ResponseEntity<List<SubscriptionDto>> getActiveByUserId(@Parameter(description = "User ID") @PathVariable UUID userId) {
         UUID currentUserId = securityService.getCurrentUserId();
 
@@ -193,17 +232,24 @@ public class SubscriptionController {
         return ResponseEntity.ok(subscriptions);
     }
 
-    @Operation(summary = "Получить подписки по категории")
+    @Operation(
+            summary = "Получить подписки по категории",
+            description = "Возвращает подписки, относящиеся к указанной категории. Доступ: ADMIN - все подписки в категории, USER - только свои подписки в этой категории."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/category/{categoryId}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/category/{categoryId}\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/subscriptions/category/{categoryId}\"}")))
     })
     @GetMapping("/category/{categoryId}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<List<SubscriptionDto>> getByCategoryId(@Parameter(description = "Category ID") @PathVariable UUID categoryId) {
         UUID currentUserId = securityService.getCurrentUserId();
         List<SubscriptionDto> subscriptions;
@@ -222,7 +268,10 @@ public class SubscriptionController {
         return ResponseEntity.ok(subscriptions);
     }
 
-    @Operation(summary = "Обновить подписку")
+    @Operation(
+            summary = "Обновить подписку",
+            description = "Обновляет данные подписки по ее ID. Доступ: ADMIN - любые подписки, USER - только свои подписки."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Subscription updated successfully"),
         @ApiResponse(responseCode = "400", description = "Validation failed",
@@ -252,7 +301,52 @@ public class SubscriptionController {
         return ResponseEntity.ok(toDto(updated));
     }
 
-    @Operation(summary = "Деактивировать подписку")
+    @Operation(
+            summary = "Атомарное обновление подписки с данными платежа",
+            description = "Обновляет подписку и связанные платежные данные в одной транзакции. Доступ: ADMIN - любые подписки, USER - только свои подписки."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Subscription updated successfully",
+            content = @Content(schema = @Schema(implementation = SubscriptionDto.class))),
+        @ApiResponse(responseCode = "400", description = "Validation failed",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":400,\"error\":\"Bad Request\",\"message\":\"Subscription name is required\",\"code\":\"SUBSCRIPTION_VALIDATION_ERROR\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/subscriptions/{id}/with-payment\"}"))),
+        @ApiResponse(responseCode = "401", description = "Authentication required",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/subscriptions/{id}/with-payment\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - not subscription owner",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/subscriptions/{id}/with-payment\"}"))),
+        @ApiResponse(responseCode = "404", description = "Subscription not found",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"Subscription with id 123e4567-e89b-12d3-a456-426614174000 not found\",\"code\":\"SUBSCRIPTION_NOT_FOUND\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/subscriptions/{id}/with-payment\"}"))),
+        @ApiResponse(responseCode = "500", description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/subscriptions/{id}/with-payment\"}")))
+    })
+    @PutMapping("/{id}/with-payment")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.isSubscriptionOwner(#id)")
+    public ResponseEntity<SubscriptionDto> updateWithPayment(
+            @Parameter(description = "Subscription ID") @PathVariable UUID id,
+            @RequestBody UpdateSubscriptionRequest request) throws SubscriptionNotFoundException, SubscriptionValidationException {
+        Subscription updated = subscriptionService.updateWithPayment(
+                id,
+                request.getName(),
+                request.getCategoryId(),
+                request.getIsActive(),
+                request.getCost(),
+                request.getCurrency(),
+                request.getBillingPeriodDays(),
+                request.getNextBillingDate(),
+                request.getOldNextBillingDate()
+        );
+        return ResponseEntity.ok(toDto(updated));
+    }
+
+    @Operation(
+            summary = "Деактивировать подписку",
+            description = "Изменяет статус подписки на неактивный. Доступ: ADMIN - любые подписки, USER - только свои подписки."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Subscription deactivated successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
@@ -275,7 +369,10 @@ public class SubscriptionController {
         return ResponseEntity.ok(toDto(subscription));
     }
 
-    @Operation(summary = "Удалить подписку")
+    @Operation(
+            summary = "Удалить подписку",
+            description = "Удаляет подписку по ее ID. Доступ: ADMIN - любые подписки, USER - только свои подписки."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Subscription deleted successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",

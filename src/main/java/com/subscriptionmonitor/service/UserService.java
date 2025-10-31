@@ -98,7 +98,7 @@ public class UserService {
         User existing = userRepository.findById(user.getId())
                 .orElseThrow(() -> new UserNotFoundException(user.getId()));
 
-        validateUser(user);
+        validateUserForUpdate(user);
         validateUniqueUsername(user.getUsername(), user.getId());
         validateUniqueEmail(user.getEmail(), user.getId());
 
@@ -108,11 +108,19 @@ public class UserService {
             }
         }
 
-        if (user.getPassword() != null && !user.getPassword().startsWith("$2a$")) {
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        existing.setEmail(user.getEmail());
+        existing.setRole(user.getRole());
+        existing.setNotificationDays(user.getNotificationDays());
+
+        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+            if (!user.getPassword().startsWith("$2a$")) {
+                existing.setPassword(passwordEncoder.encode(user.getPassword()));
+            } else {
+                existing.setPassword(user.getPassword());
+            }
         }
 
-        User updated = userRepository.save(user);
+        User updated = userRepository.save(existing);
         log.info("User updated successfully: {}", updated.getId());
         return updated;
     }
@@ -154,6 +162,33 @@ public class UserService {
             throw new UserValidationException("Password cannot be empty");
         }
         if (user.getPassword().length() > 255) {
+            throw new UserValidationException("Password cannot exceed 255 characters");
+        }
+        if (user.getNotificationDays() == null || user.getNotificationDays() < 0) {
+            throw new UserValidationException("Notification days must be a positive number");
+        }
+    }
+
+    private void validateUserForUpdate(User user) throws UserValidationException {
+        if (user == null) {
+            throw new UserValidationException("User cannot be null");
+        }
+        if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
+            throw new UserValidationException("Username cannot be empty");
+        }
+        if (user.getUsername().length() > 50) {
+            throw new UserValidationException("Username cannot exceed 50 characters");
+        }
+        if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+            throw new UserValidationException("Email cannot be empty");
+        }
+        if (!user.getEmail().matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
+            throw new UserValidationException("Invalid email format");
+        }
+        if (user.getEmail().length() > 100) {
+            throw new UserValidationException("Email cannot exceed 100 characters");
+        }
+        if (user.getPassword() != null && !user.getPassword().isEmpty() && user.getPassword().length() > 255) {
             throw new UserValidationException("Password cannot exceed 255 characters");
         }
         if (user.getNotificationDays() == null || user.getNotificationDays() < 0) {

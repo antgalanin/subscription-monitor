@@ -71,6 +71,22 @@ public class NotificationService {
         return notificationRepository.findByIsSent(false);
     }
 
+    @Transactional(readOnly = true)
+    public List<Notification> findReceivedByUserId(UUID userId) {
+        return notificationRepository.findByUserIdAndNotificationDateBefore(userId, LocalDateTime.now());
+    }
+
+    public int markPendingAsSent() {
+        List<Notification> pending = notificationRepository.findByNotificationDateBeforeAndIsSent(
+                LocalDateTime.now(), false);
+
+        pending.forEach(n -> n.setIsSent(true));
+        notificationRepository.saveAll(pending);
+
+        log.info("Marked {} notifications as sent", pending.size());
+        return pending.size();
+    }
+
     public void markAsSent(UUID id) throws NotificationNotFoundException {
         log.debug("Marking notification {} as sent", id);
         Notification notification = findById(id);
@@ -101,6 +117,20 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public long getTotalCount() {
         return notificationRepository.count();
+    }
+
+    public int deleteUnsentBySubscriptionIdAndType(UUID subscriptionId, NotificationType type) {
+        log.debug("Deleting unsent notifications for subscription {} and type {}", subscriptionId, type);
+        int deleted = notificationRepository.deleteUnsentBySubscriptionIdAndType(subscriptionId, type);
+        log.info("Deleted {} unsent {} notifications for subscription {}", deleted, type, subscriptionId);
+        return deleted;
+    }
+
+    public int deleteAllBySubscriptionId(UUID subscriptionId) {
+        log.debug("Deleting all notifications for subscription {}", subscriptionId);
+        int deleted = notificationRepository.deleteAllBySubscriptionId(subscriptionId);
+        log.info("Deleted {} notifications for subscription {}", deleted, subscriptionId);
+        return deleted;
     }
 
     private void validateNotification(Notification notification) throws NotificationValidationException {

@@ -99,9 +99,7 @@ public class SecurityService {
             return false;
         }
 
-        return subscriptionRepository.findAll().stream()
-                .filter(sub -> sub.getPayment() != null && sub.getPayment().getId().equals(paymentId))
-                .anyMatch(sub -> sub.getUserId().equals(currentUserId));
+        return subscriptionRepository.existsByPaymentIdAndUserId(paymentId, currentUserId);
     }
 
     public java.util.Set<UUID> getPaymentIdsForCurrentUser() {
@@ -110,8 +108,8 @@ public class SecurityService {
             return java.util.Collections.emptySet();
         }
 
-        return subscriptionRepository.findAll().stream()
-                .filter(sub -> sub.getUserId().equals(currentUserId) && sub.getPayment() != null)
+        return subscriptionRepository.findByUserId(currentUserId).stream()
+                .filter(sub -> sub.getPayment() != null)
                 .map(sub -> sub.getPayment().getId())
                 .collect(java.util.stream.Collectors.toSet());
     }

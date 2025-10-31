@@ -33,15 +33,17 @@ public class CategoryService {
             throw new LegacyCategoryException(category.getName());
         }
 
-        if (category.getType() == CategoryType.SYSTEM) {
-            if (currentUser != null && currentUser.getRole() != UserRole.ADMIN) {
-                throw new AccessDeniedException("Only ADMIN can create SYSTEM categories");
-            }
-            category.setCreatedByUserId(null);
-        }
-
-        if (category.getType() == CategoryType.CUSTOM) {
-            if (currentUser != null && currentUser.getRole() == UserRole.USER) {
+        if (currentUser != null) {
+            if (currentUser.getRole() == UserRole.ADMIN) {
+                if (category.getType() == CategoryType.SYSTEM) {
+                    category.setCreatedByUserId(null);
+                } else if (category.getType() == CategoryType.CUSTOM) {
+                    category.setCreatedByUserId(currentUser.getId());
+                }
+            } else if (currentUser.getRole() == UserRole.USER) {
+                if (category.getType() != CategoryType.CUSTOM) {
+                    throw new AccessDeniedException("USER can only create CUSTOM categories");
+                }
                 category.setCreatedByUserId(currentUser.getId());
             }
         }
@@ -99,10 +101,6 @@ public class CategoryService {
         Category existing = categoryRepository.findById(category.getId())
                 .orElseThrow(() -> new CategoryNotFoundException(category.getId()));
 
-        if (existing.getType() == CategoryType.LEGACY) {
-            throw new LegacyCategoryException(category.getId());
-        }
-
         if (currentUser.getRole() == UserRole.USER) {
             if (existing.getType() == CategoryType.SYSTEM) {
                 throw new AccessDeniedException("Users cannot modify SYSTEM categories");
@@ -110,17 +108,54 @@ public class CategoryService {
             if (existing.getCreatedByUserId() == null || !existing.getCreatedByUserId().equals(currentUser.getId())) {
                 throw new AccessDeniedException("Users can only modify their own categories");
             }
+        } else if (currentUser.getRole() == UserRole.ADMIN) {
+            boolean isSystemCategory = existing.getType() == CategoryType.SYSTEM;
+            boolean isOwnCategory = existing.getCreatedByUserId() != null
+                    && existing.getCreatedByUserId().equals(currentUser.getId());
+
+            if (!isSystemCategory && !isOwnCategory) {
+                throw new AccessDeniedException("Admins can only modify SYSTEM categories or their own categories");
+            }
         }
 
         validateCategory(category);
+
+        if (category.getType() == CategoryType.SYSTEM) {
+            category.setCreatedByUserId(null);
+        } else if (category.getType() == CategoryType.CUSTOM && category.getCreatedByUserId() == null) {
+            category.setCreatedByUserId(currentUser.getId());
+        }
+
         return categoryRepository.save(category);
     }
 
-    public void delete(UUID id) throws CategoryNotFoundException {
+    public void delete(UUID id, User currentUser) throws CategoryNotFoundException, LegacyCategoryException {
         log.debug("Deleting category: {}", id);
-        if (!categoryRepository.existsById(id)) {
-            throw new CategoryNotFoundException(id);
+
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new CategoryNotFoundException(id));
+
+        if (category.getType() == CategoryType.LEGACY) {
+            throw new LegacyCategoryException(category.getId());
         }
+
+        if (currentUser.getRole() == UserRole.USER) {
+            if (category.getType() == CategoryType.SYSTEM) {
+                throw new AccessDeniedException("Users cannot delete SYSTEM categories");
+            }
+            if (category.getCreatedByUserId() == null || !category.getCreatedByUserId().equals(currentUser.getId())) {
+                throw new AccessDeniedException("Users can only delete their own categories");
+            }
+        } else if (currentUser.getRole() == UserRole.ADMIN) {
+            boolean isSystemCategory = category.getType() == CategoryType.SYSTEM;
+            boolean isOwnCategory = category.getCreatedByUserId() != null
+                    && category.getCreatedByUserId().equals(currentUser.getId());
+
+            if (!isSystemCategory && !isOwnCategory) {
+                throw new AccessDeniedException("Admins can only delete SYSTEM categories or their own categories");
+            }
+        }
+
         categoryRepository.deleteById(id);
     }
 

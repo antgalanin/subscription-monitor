@@ -39,7 +39,10 @@ public class UserController {
     private final UserService userService;
     private final SecurityService securityService;
 
-    @Operation(summary = "Создать нового пользователя (ADMIN only)", description = "Создание пользователя администратором. ADMIN может назначить любую роль. Для публичной регистрации используйте POST /api/auth/register")
+    @Operation(
+            summary = "Создать нового пользователя",
+            description = "Создание нового пользователя. Доступ: только ADMIN."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "User successfully created",
             content = @Content(schema = @Schema(implementation = UserDto.class))),
@@ -49,6 +52,12 @@ public class UserController {
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - admin role required",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users\"}"))),
+        @ApiResponse(responseCode = "404", description = "Current user not found",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"User not found with id: 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\"code\":\"USER_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users\"}")))
@@ -62,7 +71,10 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
     }
 
-    @Operation(summary = "Получить пользователя по ID", description = "Возвращает информацию о пользователе по его ID")
+    @Operation(
+            summary = "Получить пользователя по ID",
+            description = "Возвращает информацию о пользователе по его ID. Доступ: ADMIN - любой пользователь, USER - только свой профиль."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "User found",
             content = @Content(schema = @Schema(implementation = UserDto.class))),
@@ -86,7 +98,10 @@ public class UserController {
         return ResponseEntity.ok(toDto(user));
     }
 
-    @Operation(summary = "Получить всех пользователей", description = "Возвращает список всех пользователей (только для ADMIN)")
+    @Operation(
+            summary = "Получить всех пользователей",
+            description = "Возвращает список всех пользователей. Доступ: только ADMIN."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List of users retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
@@ -108,33 +123,46 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
-    @Operation(summary = "Найти пользователя по username", description = "Возвращает пользователя с указанным именем")
+    @Operation(
+            summary = "Найти пользователя по username",
+            description = "Возвращает пользователя с указанным именем. Доступ: только ADMIN."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "User found",
             content = @Content(schema = @Schema(implementation = UserDto.class))),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/username/{username}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - admin role required",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/username/{username}\"}"))),
         @ApiResponse(responseCode = "404", description = "User not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"User with email john@example.com not found\",\"code\":\"USER_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/username/{username}\"}"))),
+                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"User with username john_doe not found\",\"code\":\"USER_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/username/{username}\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/username/{username}\"}")))
     })
     @GetMapping("/username/{username}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> getByUsername(@Parameter(description = "Username") @PathVariable String username) throws UserNotFoundException {
         User user = userService.findByUsername(username);
         return ResponseEntity.ok(toDto(user));
     }
 
-    @Operation(summary = "Найти пользователя по email", description = "Возвращает пользователя с указанным email")
+    @Operation(
+            summary = "Найти пользователя по email",
+            description = "Возвращает пользователя с указанным email. Доступ: только ADMIN."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "User found",
             content = @Content(schema = @Schema(implementation = UserDto.class))),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/email/{email}\"}"))),
+        @ApiResponse(responseCode = "403", description = "Access denied - admin role required",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/email/{email}\"}"))),
         @ApiResponse(responseCode = "404", description = "User not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"User with email john@example.com not found\",\"code\":\"USER_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/email/{email}\"}"))),
@@ -143,12 +171,16 @@ public class UserController {
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/email/{email}\"}")))
     })
     @GetMapping("/email/{email}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> getByEmail(@Parameter(description = "Email") @PathVariable String email) throws UserNotFoundException {
         User user = userService.findByEmail(email);
         return ResponseEntity.ok(toDto(user));
     }
 
-    @Operation(summary = "Получить пользователей по роли", description = "Возвращает список пользователей с указанной ролью (только для ADMIN)")
+    @Operation(
+            summary = "Получить пользователей по роли",
+            description = "Возвращает список пользователей с указанной ролью. Доступ: только ADMIN."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List of users retrieved successfully"),
         @ApiResponse(responseCode = "401", description = "Authentication required",
@@ -170,7 +202,10 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
-    @Operation(summary = "Обновить данные пользователя", description = "Обновляет информацию о пользователе")
+    @Operation(
+            summary = "Обновить данные пользователя",
+            description = "Обновляет информацию о пользователе. Доступ: ADMIN - любой пользователь, USER - только свой профиль."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "User updated successfully",
             content = @Content(schema = @Schema(implementation = UserDto.class))),
@@ -200,7 +235,10 @@ public class UserController {
         return ResponseEntity.ok(toDto(updated));
     }
 
-    @Operation(summary = "Удалить пользователя", description = "Удаляет пользователя из системы (только для ADMIN)")
+    @Operation(
+            summary = "Удалить пользователя по ID",
+            description = "Удаляет пользователя из системы по его ID. Доступ: только ADMIN."
+    )
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "User deleted successfully"),
         @ApiResponse(responseCode = "403", description = "Access denied",
