@@ -46,7 +46,7 @@ public class CategorySecurityService {
         }
 
         if (category.getType() == CategoryType.SYSTEM) {
-            return false;
+            return true;
         }
 
         return category.getCreatedByUserId() != null &&

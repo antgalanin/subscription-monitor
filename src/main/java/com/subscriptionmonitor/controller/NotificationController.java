@@ -1,13 +1,14 @@
 package com.subscriptionmonitor.controller;
 
-import com.subscriptionmonitor.dto.NotificationDto;
+import com.subscriptionmonitor.dto.CreateNotificationRequest;
+import com.subscriptionmonitor.dto.NotificationResponse;
+import com.subscriptionmonitor.dto.UpdateNotificationRequest;
 import com.subscriptionmonitor.exception.notfound.NotificationNotFoundException;
 import com.subscriptionmonitor.exception.validation.NotificationValidationException;
 import com.subscriptionmonitor.model.entity.Notification;
 import com.subscriptionmonitor.model.enums.NotificationType;
 import com.subscriptionmonitor.security.SecurityService;
 import com.subscriptionmonitor.service.NotificationService;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -18,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -44,7 +46,7 @@ public class NotificationController {
     )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Notification created successfully",
-            content = @Content(schema = @Schema(implementation = NotificationDto.class))),
+            content = @Content(schema = @Schema(implementation = NotificationResponse.class))),
         @ApiResponse(responseCode = "400", description = "Validation failed",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":400,\"error\":\"Bad Request\",\"message\":\"Notification message is required\",\"code\":\"NOTIFICATION_VALIDATION_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications\"}"))),
@@ -60,12 +62,11 @@ public class NotificationController {
     })
     @PostMapping
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<NotificationDto> create(@RequestBody NotificationDto notificationDto) throws NotificationValidationException {
+    public ResponseEntity<NotificationResponse> create(@Valid @RequestBody CreateNotificationRequest request) throws NotificationValidationException {
         UUID currentUserId = securityService.getCurrentUserId();
-        notificationDto.setUserId(currentUserId);
-        Notification notification = toEntity(notificationDto);
+        Notification notification = toEntityFromCreateRequest(request, currentUserId);
         Notification created = notificationService.create(notification);
-        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
     }
 
     @Operation(
@@ -74,7 +75,7 @@ public class NotificationController {
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Notification found",
-            content = @Content(schema = @Schema(implementation = NotificationDto.class))),
+            content = @Content(schema = @Schema(implementation = NotificationResponse.class))),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/{id}\"}"))),
@@ -90,11 +91,11 @@ public class NotificationController {
     })
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @securityService.isNotificationOwner(#id)")
-    public ResponseEntity<NotificationDto> getById(
+    public ResponseEntity<NotificationResponse> getById(
         @Parameter(description = "UUID уведомления") @PathVariable UUID id
     ) throws NotificationNotFoundException {
         Notification notification = notificationService.findById(id);
-        return ResponseEntity.ok(toDto(notification));
+        return ResponseEntity.ok(toResponse(notification));
     }
 
     @Operation(
@@ -115,18 +116,18 @@ public class NotificationController {
     })
     @GetMapping
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<List<NotificationDto>> getAll() {
+    public ResponseEntity<List<NotificationResponse>> getAll() {
         UUID currentUserId = securityService.getCurrentUserId();
-        List<NotificationDto> notifications;
+        List<NotificationResponse> notifications;
 
         if (securityService.isAdmin()) {
             notifications = notificationService.findAll().stream()
-                    .map(this::toDto)
+                    .map(this::toResponse)
                     .collect(Collectors.toList());
         } else {
             notifications = notificationService.findAll().stream()
                     .filter(notification -> notification.getUserId().equals(currentUserId))
-                    .map(this::toDto)
+                    .map(this::toResponse)
                     .collect(Collectors.toList());
         }
 
@@ -151,17 +152,11 @@ public class NotificationController {
     })
     @GetMapping("/user/{userId}")
     @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#userId)")
-    public ResponseEntity<List<NotificationDto>> getByUserId(
+    public ResponseEntity<List<NotificationResponse>> getByUserId(
         @Parameter(description = "UUID пользователя") @PathVariable UUID userId
     ) {
-        UUID currentUserId = securityService.getCurrentUserId();
-
-        if (!securityService.isAdmin() && !currentUserId.equals(userId)) {
-            throw new AccessDeniedException("You can only access your own notifications");
-        }
-
-        List<NotificationDto> notifications = notificationService.findByUserId(userId).stream()
-                .map(this::toDto)
+        List<NotificationResponse> notifications = notificationService.findByUserId(userId).stream()
+                .map(this::toResponse)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(notifications);
     }
@@ -184,15 +179,11 @@ public class NotificationController {
     })
     @GetMapping("/subscription/{subscriptionId}")
     @PreAuthorize("hasRole('ADMIN') or @securityService.isSubscriptionOwner(#subscriptionId)")
-    public ResponseEntity<List<NotificationDto>> getBySubscriptionId(
+    public ResponseEntity<List<NotificationResponse>> getBySubscriptionId(
         @Parameter(description = "UUID подписки") @PathVariable UUID subscriptionId
     ) {
-        if (!securityService.isAdmin() && !securityService.isSubscriptionOwner(subscriptionId)) {
-            throw new AccessDeniedException("You can only access notifications for your own subscriptions");
-        }
-
-        List<NotificationDto> notifications = notificationService.findBySubscriptionId(subscriptionId).stream()
-                .map(this::toDto)
+        List<NotificationResponse> notifications = notificationService.findBySubscriptionId(subscriptionId).stream()
+                .map(this::toResponse)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(notifications);
     }
@@ -215,56 +206,23 @@ public class NotificationController {
     })
     @GetMapping("/sent/{isSent}")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<List<NotificationDto>> getBySentStatus(
+    public ResponseEntity<List<NotificationResponse>> getBySentStatus(
         @Parameter(description = "Is sent status (true/false)", example = "true") @PathVariable Boolean isSent
     ) {
         UUID currentUserId = securityService.getCurrentUserId();
-        List<NotificationDto> notifications;
+        List<NotificationResponse> notifications;
 
         if (securityService.isAdmin()) {
             notifications = notificationService.findByIsSent(isSent).stream()
-                    .map(this::toDto)
+                    .map(this::toResponse)
                     .collect(Collectors.toList());
         } else {
             notifications = notificationService.findByIsSent(isSent).stream()
                     .filter(notification -> notification.getUserId().equals(currentUserId))
-                    .map(this::toDto)
+                    .map(this::toResponse)
                     .collect(Collectors.toList());
         }
 
-        return ResponseEntity.ok(notifications);
-    }
-
-    @Operation(
-            summary = "Получить уведомления пользователя по типу",
-            description = "Возвращает уведомления пользователя с указанным типом. Доступ: ADMIN - уведомления любого пользователя, USER - только свои уведомления."
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
-        @ApiResponse(responseCode = "401", description = "Authentication required",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/user/{userId}/type/{type}\"}"))),
-        @ApiResponse(responseCode = "403", description = "Access denied - not notification owner",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"You can only access your own notifications\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/user/{userId}/type/{type}\"}"))),
-        @ApiResponse(responseCode = "500", description = "Internal server error",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/user/{userId}/type/{type}\"}")))
-    })
-    @GetMapping("/user/{userId}/type/{type}")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#userId)")
-    public ResponseEntity<List<NotificationDto>> getByUserIdAndType(
-            @Parameter(description = "UUID пользователя") @PathVariable UUID userId,
-            @Parameter(description = "Тип уведомления (EMAIL, SMS, PUSH и т.д.)") @PathVariable NotificationType type) {
-        UUID currentUserId = securityService.getCurrentUserId();
-
-        if (!securityService.isAdmin() && !currentUserId.equals(userId)) {
-            throw new AccessDeniedException("You can only access your own notifications");
-        }
-
-        List<NotificationDto> notifications = notificationService.findByUserIdAndType(userId, type).stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
         return ResponseEntity.ok(notifications);
     }
 
@@ -286,10 +244,10 @@ public class NotificationController {
     })
     @GetMapping("/my/received")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<List<NotificationDto>> getMyReceived() {
+    public ResponseEntity<List<NotificationResponse>> getMyReceived() {
         UUID currentUserId = securityService.getCurrentUserId();
-        List<NotificationDto> notifications = notificationService.findReceivedByUserId(currentUserId).stream()
-                .map(this::toDto)
+        List<NotificationResponse> notifications = notificationService.findReceivedByUserId(currentUserId).stream()
+                .map(this::toResponse)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(notifications);
     }
@@ -312,18 +270,18 @@ public class NotificationController {
     })
     @GetMapping("/pending")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<List<NotificationDto>> getPending() {
+    public ResponseEntity<List<NotificationResponse>> getPending() {
         UUID currentUserId = securityService.getCurrentUserId();
-        List<NotificationDto> notifications;
+        List<NotificationResponse> notifications;
 
         if (securityService.isAdmin()) {
             notifications = notificationService.getPendingNotifications().stream()
-                    .map(this::toDto)
+                    .map(this::toResponse)
                     .collect(Collectors.toList());
         } else {
             notifications = notificationService.getPendingNotifications().stream()
                     .filter(notification -> notification.getUserId().equals(currentUserId))
-                    .map(this::toDto)
+                    .map(this::toResponse)
                     .collect(Collectors.toList());
         }
 
@@ -354,40 +312,12 @@ public class NotificationController {
     }
 
     @Operation(
-            summary = "Пометить уведомление как отправленное",
-            description = "Изменяет статус уведомления на отправленное (isSent = true). Доступ: ADMIN - любые уведомления, USER - только свои уведомления."
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Notification marked as sent successfully"),
-        @ApiResponse(responseCode = "401", description = "Authentication required",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/{id}\"}"))),
-        @ApiResponse(responseCode = "403", description = "Access denied - not notification owner",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/{id}/mark-sent\"}"))),
-        @ApiResponse(responseCode = "404", description = "Notification not found",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"Notification with id 123e4567-e89b-12d3-a456-426614174000 not found\",\"code\":\"NOTIFICATION_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/{id}\"}"))),
-        @ApiResponse(responseCode = "500", description = "Internal server error",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/{id}\"}")))
-    })
-    @PatchMapping("/{id}/mark-sent")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isNotificationOwner(#id)")
-    public ResponseEntity<Void> markAsSent(
-        @Parameter(description = "UUID уведомления") @PathVariable UUID id
-    ) throws NotificationNotFoundException {
-        notificationService.markAsSent(id);
-        return ResponseEntity.ok().build();
-    }
-
-    @Operation(
             summary = "Обновить уведомление",
             description = "Обновляет данные уведомления по его ID. Доступ: ADMIN - любые уведомления, USER - только свои уведомления."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Notification updated successfully",
-            content = @Content(schema = @Schema(implementation = NotificationDto.class))),
+            content = @Content(schema = @Schema(implementation = NotificationResponse.class))),
         @ApiResponse(responseCode = "400", description = "Validation failed",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":400,\"error\":\"Bad Request\",\"message\":\"Notification message is required\",\"code\":\"NOTIFICATION_VALIDATION_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/notifications/{id}\"}"))),
@@ -406,17 +336,14 @@ public class NotificationController {
     })
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @securityService.isNotificationOwner(#id)")
-    public ResponseEntity<NotificationDto> update(
+    public ResponseEntity<NotificationResponse> update(
         @Parameter(description = "UUID уведомления") @PathVariable UUID id,
-        @RequestBody NotificationDto notificationDto
+        @Valid @RequestBody UpdateNotificationRequest request
     ) throws NotificationNotFoundException, NotificationValidationException {
         Notification existing = notificationService.findById(id);
-        notificationDto.setId(id);
-        notificationDto.setUserId(existing.getUserId());
-        notificationDto.setSubscriptionId(existing.getSubscriptionId());
-        Notification notification = toEntity(notificationDto);
+        Notification notification = toEntityFromUpdateRequest(id, request, existing);
         Notification updated = notificationService.update(notification);
-        return ResponseEntity.ok(toDto(updated));
+        return ResponseEntity.ok(toResponse(updated));
     }
 
     @Operation(
@@ -447,8 +374,8 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
-    private NotificationDto toDto(Notification notification) {
-        return new NotificationDto(
+    private NotificationResponse toResponse(Notification notification) {
+        return new NotificationResponse(
                 notification.getId(),
                 notification.getUserId(),
                 notification.getSubscriptionId(),
@@ -460,16 +387,27 @@ public class NotificationController {
         );
     }
 
-    private Notification toEntity(NotificationDto dto) {
+    private Notification toEntityFromCreateRequest(CreateNotificationRequest request, UUID currentUserId) {
         Notification notification = new Notification();
-        notification.setId(dto.getId());
-        notification.setUserId(dto.getUserId());
-        notification.setSubscriptionId(dto.getSubscriptionId());
-        notification.setNotificationDate(dto.getNotificationDate());
-        notification.setType(dto.getType());
-        notification.setIsSent(dto.getIsSent() != null ? dto.getIsSent() : false);
-        notification.setMessage(dto.getMessage());
-        notification.setCreatedAt(dto.getCreatedAt());
+        notification.setUserId(currentUserId);
+        notification.setSubscriptionId(request.getSubscriptionId());
+        notification.setNotificationDate(request.getNotificationDate());
+        notification.setType(request.getType());
+        notification.setIsSent(request.getIsSent() != null ? request.getIsSent() : false);
+        notification.setMessage(request.getMessage());
+        return notification;
+    }
+
+    private Notification toEntityFromUpdateRequest(UUID id, UpdateNotificationRequest request, Notification existing) {
+        Notification notification = new Notification();
+        notification.setId(id);
+        notification.setUserId(existing.getUserId());
+        notification.setSubscriptionId(existing.getSubscriptionId());
+        notification.setNotificationDate(request.getNotificationDate() != null ? request.getNotificationDate() : existing.getNotificationDate());
+        notification.setType(request.getType() != null ? request.getType() : existing.getType());
+        notification.setIsSent(request.getIsSent() != null ? request.getIsSent() : existing.getIsSent());
+        notification.setMessage(request.getMessage() != null ? request.getMessage() : existing.getMessage());
+        notification.setCreatedAt(existing.getCreatedAt());
         return notification;
     }
 }

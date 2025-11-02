@@ -113,4 +113,15 @@ public class SecurityService {
                 .map(sub -> sub.getPayment().getId())
                 .collect(java.util.stream.Collectors.toSet());
     }
+
+    public <T> java.util.List<T> filterAccessiblePayments(java.util.List<T> payments, java.util.function.Function<T, UUID> idExtractor) {
+        if (isAdmin()) {
+            return payments;
+        }
+
+        java.util.Set<UUID> allowedPaymentIds = getPaymentIdsForCurrentUser();
+        return payments.stream()
+                .filter(payment -> allowedPaymentIds.contains(idExtractor.apply(payment)))
+                .collect(java.util.stream.Collectors.toList());
+    }
 }

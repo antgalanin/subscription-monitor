@@ -2,6 +2,7 @@ package com.subscriptionmonitor.dto;
 
 import com.subscriptionmonitor.model.enums.Currency;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMin;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -24,6 +25,7 @@ public class UpdateSubscriptionRequest {
     @Schema(description = "Новый статус активности подписки", example = "true")
     private Boolean isActive;
 
+    @DecimalMin(value = "0.0", inclusive = true, message = "Cost must be greater than or equal to 0")
     @Schema(description = "Новая стоимость подписки", example = "499.00")
     private BigDecimal cost;
 

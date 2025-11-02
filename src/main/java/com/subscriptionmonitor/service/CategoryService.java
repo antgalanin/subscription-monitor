@@ -105,16 +105,14 @@ public class CategoryService {
             if (existing.getType() == CategoryType.SYSTEM) {
                 throw new AccessDeniedException("Users cannot modify SYSTEM categories");
             }
+            if (existing.getType() == CategoryType.LEGACY) {
+                throw new LegacyCategoryException(existing.getId());
+            }
             if (existing.getCreatedByUserId() == null || !existing.getCreatedByUserId().equals(currentUser.getId())) {
                 throw new AccessDeniedException("Users can only modify their own categories");
             }
-        } else if (currentUser.getRole() == UserRole.ADMIN) {
-            boolean isSystemCategory = existing.getType() == CategoryType.SYSTEM;
-            boolean isOwnCategory = existing.getCreatedByUserId() != null
-                    && existing.getCreatedByUserId().equals(currentUser.getId());
-
-            if (!isSystemCategory && !isOwnCategory) {
-                throw new AccessDeniedException("Admins can only modify SYSTEM categories or their own categories");
+            if (category.getType() == CategoryType.SYSTEM) {
+                throw new AccessDeniedException("Users cannot change category type to SYSTEM");
             }
         }
 
@@ -145,14 +143,6 @@ public class CategoryService {
             }
             if (category.getCreatedByUserId() == null || !category.getCreatedByUserId().equals(currentUser.getId())) {
                 throw new AccessDeniedException("Users can only delete their own categories");
-            }
-        } else if (currentUser.getRole() == UserRole.ADMIN) {
-            boolean isSystemCategory = category.getType() == CategoryType.SYSTEM;
-            boolean isOwnCategory = category.getCreatedByUserId() != null
-                    && category.getCreatedByUserId().equals(currentUser.getId());
-
-            if (!isSystemCategory && !isOwnCategory) {
-                throw new AccessDeniedException("Admins can only delete SYSTEM categories or their own categories");
             }
         }
 

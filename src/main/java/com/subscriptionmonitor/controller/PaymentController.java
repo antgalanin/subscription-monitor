@@ -1,6 +1,8 @@
 package com.subscriptionmonitor.controller;
 
-import com.subscriptionmonitor.dto.PaymentDto;
+import com.subscriptionmonitor.dto.CreatePaymentRequest;
+import com.subscriptionmonitor.dto.PaymentResponse;
+import com.subscriptionmonitor.dto.UpdatePaymentRequest;
 import com.subscriptionmonitor.exception.notfound.PaymentNotFoundException;
 import com.subscriptionmonitor.exception.validation.PaymentValidationException;
 import com.subscriptionmonitor.model.entity.Payment;
@@ -17,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -60,10 +63,10 @@ public class PaymentController {
     })
     @PostMapping
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<PaymentDto> create(@RequestBody PaymentDto paymentDto) throws PaymentValidationException {
-        Payment payment = toEntity(paymentDto);
+    public ResponseEntity<PaymentResponse> create(@Valid @RequestBody CreatePaymentRequest request) throws PaymentValidationException {
+        Payment payment = toEntityFromCreateRequest(request);
         Payment created = paymentService.create(payment);
-        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
     }
 
     @Operation(
@@ -87,9 +90,9 @@ public class PaymentController {
     })
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @securityService.isPaymentOwner(#id)")
-    public ResponseEntity<PaymentDto> getById(@Parameter(description = "Payment ID") @PathVariable UUID id) throws PaymentNotFoundException {
+    public ResponseEntity<PaymentResponse> getById(@Parameter(description = "Payment ID") @PathVariable UUID id) throws PaymentNotFoundException {
         Payment payment = paymentService.findById(id);
-        return ResponseEntity.ok(toDto(payment));
+        return ResponseEntity.ok(toResponse(payment));
     }
 
     @Operation(
@@ -110,20 +113,14 @@ public class PaymentController {
     })
     @GetMapping
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<List<PaymentDto>> getAll() {
-        List<PaymentDto> payments;
+    public ResponseEntity<List<PaymentResponse>> getAll() {
+        List<com.subscriptionmonitor.model.entity.Payment> allPayments = paymentService.findAll();
+        List<com.subscriptionmonitor.model.entity.Payment> accessiblePayments =
+            securityService.filterAccessiblePayments(allPayments, com.subscriptionmonitor.model.entity.Payment::getId);
 
-        if (securityService.isAdmin()) {
-            payments = paymentService.findAll().stream()
-                    .map(this::toDto)
-                    .collect(Collectors.toList());
-        } else {
-            java.util.Set<UUID> allowedPaymentIds = securityService.getPaymentIdsForCurrentUser();
-            payments = paymentService.findAll().stream()
-                    .filter(payment -> allowedPaymentIds.contains(payment.getId()))
-                    .map(this::toDto)
-                    .collect(Collectors.toList());
-        }
+        List<PaymentResponse> payments = accessiblePayments.stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
 
         return ResponseEntity.ok(payments);
     }
@@ -146,95 +143,14 @@ public class PaymentController {
     })
     @GetMapping("/currency/{currency}")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<List<PaymentDto>> getByCurrency(@Parameter(description = "Currency") @PathVariable Currency currency) {
-        List<PaymentDto> payments;
+    public ResponseEntity<List<PaymentResponse>> getByCurrency(@Parameter(description = "Currency") @PathVariable Currency currency) {
+        List<com.subscriptionmonitor.model.entity.Payment> paymentsByCurrency = paymentService.findByCurrency(currency);
+        List<com.subscriptionmonitor.model.entity.Payment> accessiblePayments =
+            securityService.filterAccessiblePayments(paymentsByCurrency, com.subscriptionmonitor.model.entity.Payment::getId);
 
-        if (securityService.isAdmin()) {
-            payments = paymentService.findByCurrency(currency).stream()
-                    .map(this::toDto)
-                    .collect(Collectors.toList());
-        } else {
-            java.util.Set<UUID> allowedPaymentIds = securityService.getPaymentIdsForCurrentUser();
-            payments = paymentService.findByCurrency(currency).stream()
-                    .filter(payment -> allowedPaymentIds.contains(payment.getId()))
-                    .map(this::toDto)
-                    .collect(Collectors.toList());
-        }
-
-        return ResponseEntity.ok(payments);
-    }
-
-    @Operation(
-            summary = "Получить платежную информацию по диапазону дат",
-            description = "Возвращает платежи с датой следующего списания в указанном диапазоне. Доступ: ADMIN - все платежи, USER - только платежи своих подписок."
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
-        @ApiResponse(responseCode = "401", description = "Authentication required",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/billing-date-range\"}"))),
-        @ApiResponse(responseCode = "403", description = "Access denied",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/billing-date-range\"}"))),
-        @ApiResponse(responseCode = "500", description = "Internal server error",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/billing-date-range\"}")))
-    })
-    @GetMapping("/billing-date-range")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<List<PaymentDto>> getByBillingDateRange(
-            @Parameter(description = "Start date") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @Parameter(description = "End date") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        List<PaymentDto> payments;
-
-        if (securityService.isAdmin()) {
-            payments = paymentService.findByNextBillingDateBetween(startDate, endDate).stream()
-                    .map(this::toDto)
-                    .collect(Collectors.toList());
-        } else {
-            java.util.Set<UUID> allowedPaymentIds = securityService.getPaymentIdsForCurrentUser();
-            payments = paymentService.findByNextBillingDateBetween(startDate, endDate).stream()
-                    .filter(payment -> allowedPaymentIds.contains(payment.getId()))
-                    .map(this::toDto)
-                    .collect(Collectors.toList());
-        }
-
-        return ResponseEntity.ok(payments);
-    }
-
-    @Operation(
-            summary = "Получить платежную информацию до указанной даты",
-            description = "Возвращает платежи с датой следующего списания до указанной даты. Доступ: ADMIN - все платежи, USER - только платежи своих подписок."
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
-        @ApiResponse(responseCode = "401", description = "Authentication required",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/billing-date-before\"}"))),
-        @ApiResponse(responseCode = "403", description = "Access denied",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/billing-date-before\"}"))),
-        @ApiResponse(responseCode = "500", description = "Internal server error",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/payments/billing-date-before\"}")))
-    })
-    @GetMapping("/billing-date-before")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<List<PaymentDto>> getByBillingDateBefore(
-            @Parameter(description = "Date") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        List<PaymentDto> payments;
-
-        if (securityService.isAdmin()) {
-            payments = paymentService.findByNextBillingDateBefore(date).stream()
-                    .map(this::toDto)
-                    .collect(Collectors.toList());
-        } else {
-            java.util.Set<UUID> allowedPaymentIds = securityService.getPaymentIdsForCurrentUser();
-            payments = paymentService.findByNextBillingDateBefore(date).stream()
-                    .filter(payment -> allowedPaymentIds.contains(payment.getId()))
-                    .map(this::toDto)
-                    .collect(Collectors.toList());
-        }
+        List<PaymentResponse> payments = accessiblePayments.stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
 
         return ResponseEntity.ok(payments);
     }
@@ -263,12 +179,11 @@ public class PaymentController {
     })
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @securityService.isPaymentOwner(#id)")
-    public ResponseEntity<PaymentDto> update(@Parameter(description = "Payment ID") @PathVariable UUID id, @RequestBody PaymentDto paymentDto) throws PaymentNotFoundException, PaymentValidationException {
+    public ResponseEntity<PaymentResponse> update(@Parameter(description = "Payment ID") @PathVariable UUID id, @Valid @RequestBody UpdatePaymentRequest request) throws PaymentNotFoundException, PaymentValidationException {
         Payment existing = paymentService.findById(id);
-        paymentDto.setId(id);
-        Payment payment = toEntity(paymentDto);
+        Payment payment = toEntityFromUpdateRequest(id, request, existing);
         Payment updated = paymentService.update(payment);
-        return ResponseEntity.ok(toDto(updated));
+        return ResponseEntity.ok(toResponse(updated));
     }
 
     @Operation(
@@ -297,8 +212,8 @@ public class PaymentController {
         return ResponseEntity.noContent().build();
     }
 
-    private PaymentDto toDto(Payment payment) {
-        return new PaymentDto(
+    private PaymentResponse toResponse(Payment payment) {
+        return new PaymentResponse(
                 payment.getId(),
                 payment.getCost(),
                 payment.getCurrency(),
@@ -308,14 +223,23 @@ public class PaymentController {
         );
     }
 
-    private Payment toEntity(PaymentDto dto) {
+    private Payment toEntityFromCreateRequest(CreatePaymentRequest request) {
         Payment payment = new Payment();
-        payment.setId(dto.getId());
-        payment.setCost(dto.getCost());
-        payment.setCurrency(dto.getCurrency());
-        payment.setBillingPeriodDays(dto.getBillingPeriodDays());
-        payment.setNextBillingDate(dto.getNextBillingDate());
-        payment.setCreatedAt(dto.getCreatedAt());
+        payment.setCost(request.getCost());
+        payment.setCurrency(request.getCurrency());
+        payment.setBillingPeriodDays(request.getBillingPeriodDays());
+        payment.setNextBillingDate(request.getNextBillingDate());
+        return payment;
+    }
+
+    private Payment toEntityFromUpdateRequest(UUID id, UpdatePaymentRequest request, Payment existing) {
+        Payment payment = new Payment();
+        payment.setId(id);
+        payment.setCost(request.getCost() != null ? request.getCost() : existing.getCost());
+        payment.setCurrency(request.getCurrency() != null ? request.getCurrency() : existing.getCurrency());
+        payment.setBillingPeriodDays(request.getBillingPeriodDays() != null ? request.getBillingPeriodDays() : existing.getBillingPeriodDays());
+        payment.setNextBillingDate(request.getNextBillingDate() != null ? request.getNextBillingDate() : existing.getNextBillingDate());
+        payment.setCreatedAt(existing.getCreatedAt());
         return payment;
     }
 }

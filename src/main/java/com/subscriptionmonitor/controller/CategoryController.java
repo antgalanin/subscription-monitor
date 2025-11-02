@@ -1,6 +1,8 @@
 package com.subscriptionmonitor.controller;
 
-import com.subscriptionmonitor.dto.CategoryDto;
+import com.subscriptionmonitor.dto.CategoryResponse;
+import com.subscriptionmonitor.dto.CreateCategoryRequest;
+import com.subscriptionmonitor.dto.UpdateCategoryRequest;
 import com.subscriptionmonitor.exception.notfound.CategoryNotFoundException;
 import com.subscriptionmonitor.exception.validation.CategoryValidationException;
 import com.subscriptionmonitor.exception.special.LegacyCategoryException;
@@ -19,6 +21,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -51,7 +54,7 @@ public class CategoryController {
     )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Category successfully created",
-            content = @Content(schema = @Schema(implementation = CategoryDto.class))),
+            content = @Content(schema = @Schema(implementation = CategoryResponse.class))),
         @ApiResponse(responseCode = "400", description = "Validation failed",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":400,\"error\":\"Bad Request\",\"message\":\"Category name is required\",\"code\":\"CATEGORY_VALIDATION_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/categories\"}"))),
@@ -70,11 +73,11 @@ public class CategoryController {
     })
     @PostMapping
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<CategoryDto> create(@RequestBody CategoryDto categoryDto) throws CategoryValidationException, LegacyCategoryException {
+    public ResponseEntity<CategoryResponse> create(@Valid @RequestBody CreateCategoryRequest request) throws CategoryValidationException, LegacyCategoryException {
         User currentUser = categorySecurityService.getCurrentUser();
-        Category category = toEntity(categoryDto);
+        Category category = toEntityFromCreateRequest(request, currentUser);
         Category created = categoryService.create(category, currentUser);
-        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
     }
 
     @Operation(
@@ -98,9 +101,9 @@ public class CategoryController {
     })
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @categorySecurityService.isOwner(#id)")
-    public ResponseEntity<CategoryDto> getById(@Parameter(description = "Category ID") @PathVariable UUID id) throws CategoryNotFoundException {
+    public ResponseEntity<CategoryResponse> getById(@Parameter(description = "Category ID") @PathVariable UUID id) throws CategoryNotFoundException {
         Category category = categoryService.findById(id);
-        return ResponseEntity.ok(toDto(category));
+        return ResponseEntity.ok(toResponse(category));
     }
 
     @Operation(
@@ -121,21 +124,18 @@ public class CategoryController {
     })
     @GetMapping
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<List<CategoryDto>> getAll() {
+    public ResponseEntity<List<CategoryResponse>> getAll() {
         User currentUser = categorySecurityService.getCurrentUser();
-        List<CategoryDto> categories;
+        List<CategoryResponse> categories;
 
         if (currentUser.getRole().name().equals("ADMIN")) {
             categories = categoryService.findAll().stream()
-                    .map(this::toDto)
+                    .map(this::toResponse)
                     .collect(Collectors.toList());
         } else {
             categories = categoryService.findAll().stream()
-                    .filter(category ->
-                        category.getType() == CategoryType.SYSTEM ||
-                        category.getCreatedByUserId().equals(currentUser.getId())
-                    )
-                    .map(this::toDto)
+                    .filter(category -> isAccessibleByUser(category, currentUser))
+                    .map(this::toResponse)
                     .collect(Collectors.toList());
         }
 
@@ -160,21 +160,18 @@ public class CategoryController {
     })
     @GetMapping("/type/{type}")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<List<CategoryDto>> getByType(@Parameter(description = "Category type") @PathVariable CategoryType type) {
+    public ResponseEntity<List<CategoryResponse>> getByType(@Parameter(description = "Category type") @PathVariable CategoryType type) {
         User currentUser = categorySecurityService.getCurrentUser();
-        List<CategoryDto> categories;
+        List<CategoryResponse> categories;
 
         if (currentUser.getRole().name().equals("ADMIN")) {
             categories = categoryService.findByType(type).stream()
-                    .map(this::toDto)
+                    .map(this::toResponse)
                     .collect(Collectors.toList());
         } else {
             categories = categoryService.findByType(type).stream()
-                    .filter(category ->
-                        category.getType() == CategoryType.SYSTEM ||
-                        category.getCreatedByUserId().equals(currentUser.getId())
-                    )
-                    .map(this::toDto)
+                    .filter(category -> isAccessibleByUser(category, currentUser))
+                    .map(this::toResponse)
                     .collect(Collectors.toList());
         }
 
@@ -199,36 +196,9 @@ public class CategoryController {
     })
     @GetMapping("/user/{userId}")
     @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#userId)")
-    public ResponseEntity<List<CategoryDto>> getByUserId(@Parameter(description = "User ID") @PathVariable UUID userId) {
-        List<CategoryDto> categories = categoryService.findByCreatedByUserId(userId).stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(categories);
-    }
-
-    @Operation(
-            summary = "Получить категории по типу и пользователю",
-            description = "Возвращает все доступные категории по типу и ID пользователя. Доступ: ADMIN - категории любого пользователя, USER - свои кастомные и свои устаревшие."
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "List retrieved successfully"),
-        @ApiResponse(responseCode = "401", description = "Authentication required",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/categories/type/{type}/user/{userId}\"}"))),
-        @ApiResponse(responseCode = "403", description = "Access denied",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/categories/type/{type}/user/{userId}\"}"))),
-        @ApiResponse(responseCode = "500", description = "Internal server error",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/categories/type/{type}/user/{userId}\"}")))
-    })
-    @GetMapping("/type/{type}/user/{userId}")
-    @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#userId)")
-    public ResponseEntity<List<CategoryDto>> getByTypeAndUserId(
-            @Parameter(description = "Category type") @PathVariable CategoryType type,
-            @Parameter(description = "User ID") @PathVariable UUID userId) {
-        List<CategoryDto> categories = categoryService.findByTypeAndCreatedByUserId(type, userId).stream()
-                .map(this::toDto)
+    public ResponseEntity<List<CategoryResponse>> getByUserId(@Parameter(description = "User ID") @PathVariable UUID userId) {
+        List<CategoryResponse> categories = categoryService.findByCreatedByUserId(userId).stream()
+                .map(this::toResponse)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(categories);
     }
@@ -260,12 +230,12 @@ public class CategoryController {
     })
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @categorySecurityService.isOwner(#id)")
-    public ResponseEntity<CategoryDto> update(@Parameter(description = "Category ID") @PathVariable UUID id, @RequestBody CategoryDto categoryDto) throws CategoryNotFoundException, CategoryValidationException, LegacyCategoryException {
+    public ResponseEntity<CategoryResponse> update(@Parameter(description = "Category ID") @PathVariable UUID id, @Valid @RequestBody UpdateCategoryRequest request) throws CategoryNotFoundException, CategoryValidationException, LegacyCategoryException {
         User currentUser = categorySecurityService.getCurrentUser();
-        categoryDto.setId(id);
-        Category category = toEntity(categoryDto);
+        Category existing = categoryService.findById(id);
+        Category category = toEntityFromUpdateRequest(id, request, existing);
         Category updated = categoryService.update(category, currentUser);
-        return ResponseEntity.ok(toDto(updated));
+        return ResponseEntity.ok(toResponse(updated));
     }
 
     @Operation(
@@ -300,8 +270,14 @@ public class CategoryController {
         return ResponseEntity.noContent().build();
     }
 
-    private CategoryDto toDto(Category category) {
-        return new CategoryDto(
+    private boolean isAccessibleByUser(Category category, User user) {
+        return category.getType() == CategoryType.SYSTEM ||
+               (category.getType() == CategoryType.LEGACY && category.getCreatedByUserId() == null) ||
+               (category.getCreatedByUserId() != null && category.getCreatedByUserId().equals(user.getId()));
+    }
+
+    private CategoryResponse toResponse(Category category) {
+        return new CategoryResponse(
                 category.getId(),
                 category.getName(),
                 category.getType(),
@@ -310,13 +286,20 @@ public class CategoryController {
         );
     }
 
-    private Category toEntity(CategoryDto dto) {
+    private Category toEntityFromCreateRequest(CreateCategoryRequest request, User currentUser) {
         Category category = new Category();
-        category.setId(dto.getId());
-        category.setName(dto.getName());
-        category.setType(dto.getType());
-        category.setCreatedByUserId(dto.getCreatedByUserId());
-        category.setCreatedAt(dto.getCreatedAt());
+        category.setName(request.getName());
+        category.setType(request.getType());
+        return category;
+    }
+
+    private Category toEntityFromUpdateRequest(UUID id, UpdateCategoryRequest request, Category existing) {
+        Category category = new Category();
+        category.setId(id);
+        category.setName(request.getName() != null ? request.getName() : existing.getName());
+        category.setType(request.getType() != null ? request.getType() : existing.getType());
+        category.setCreatedByUserId(existing.getCreatedByUserId());
+        category.setCreatedAt(existing.getCreatedAt());
         return category;
     }
 }

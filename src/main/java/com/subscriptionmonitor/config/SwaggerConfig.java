@@ -51,7 +51,7 @@ public class SwaggerConfig {
                     new Tag().name("Categories").description("API для управления категориями подписок"),
                     new Tag().name("Subscriptions").description("API для управления подписками"),
                     new Tag().name("Payments").description("API для управления платежной информацией"),
-                    new Tag().name("Notifications").description("API для управления уведомлениями о предстоящих списаниях. Автоматически создаются при добавлении подписки."),
+                    new Tag().name("Notifications").description("API для управления уведомлениями о предстоящих списаниях"),
                     new Tag().name("Analytics").description("API для получения аналитических данных и статистики")
             );
             openApi.setTags(tags);

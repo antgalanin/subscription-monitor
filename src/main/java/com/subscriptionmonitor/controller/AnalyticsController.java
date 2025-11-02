@@ -129,22 +129,22 @@ public class AnalyticsController {
             content = @Content(schema = @Schema(implementation = UserStatisticsDto.class))),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{id}/statistics\"}"))),
+                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{userId}/statistics\"}"))),
         @ApiResponse(responseCode = "403", description = "Access denied - admin role required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{id}/statistics\"}"))),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{userId}/statistics\"}"))),
         @ApiResponse(responseCode = "404", description = "User not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"User not found with id: 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\"code\":\"USER_NOT_FOUND\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{id}/statistics\"}"))),
+                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"User not found with id: 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\"code\":\"USER_NOT_FOUND\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{userId}/statistics\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{id}/statistics\"}")))
+                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{userId}/statistics\"}")))
     })
-    @GetMapping("/users/{id}/statistics")
+    @GetMapping("/users/{userId}/statistics")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserStatisticsDto> getUserStatistics(@PathVariable UUID id) throws UserNotFoundException {
-        log.debug("Getting statistics for user: {}", id);
-        UserStatisticsDto statistics = analyticsService.getUserStatistics(id);
+    public ResponseEntity<UserStatisticsDto> getUserStatistics(@PathVariable UUID userId) throws UserNotFoundException {
+        log.debug("Getting statistics for user: {}", userId);
+        UserStatisticsDto statistics = analyticsService.getUserStatistics(userId);
         return ResponseEntity.ok(statistics);
     }
 
@@ -157,22 +157,22 @@ public class AnalyticsController {
             content = @Content(array = @ArraySchema(schema = @Schema(implementation = UpcomingPaymentDto.class)))),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{id}/upcoming-payments\"}"))),
+                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{userId}/upcoming-payments\"}"))),
         @ApiResponse(responseCode = "403", description = "Access denied - admin role required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{id}/upcoming-payments\"}"))),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{userId}/upcoming-payments\"}"))),
         @ApiResponse(responseCode = "404", description = "User not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"User not found with id: 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\"code\":\"USER_NOT_FOUND\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{id}/upcoming-payments\"}"))),
+                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"User not found with id: 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\"code\":\"USER_NOT_FOUND\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{userId}/upcoming-payments\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{id}/upcoming-payments\"}")))
+                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{userId}/upcoming-payments\"}")))
     })
-    @GetMapping("/users/{id}/upcoming-payments")
+    @GetMapping("/users/{userId}/upcoming-payments")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<UpcomingPaymentDto>> getUpcomingPayments(@PathVariable UUID id) {
-        log.debug("Getting upcoming payments for user: {}", id);
-        List<UpcomingPaymentDto> payments = analyticsService.getUpcomingPayments(id);
+    public ResponseEntity<List<UpcomingPaymentDto>> getUpcomingPayments(@PathVariable UUID userId) {
+        log.debug("Getting upcoming payments for user: {}", userId);
+        List<UpcomingPaymentDto> payments = analyticsService.getUpcomingPayments(userId);
         return ResponseEntity.ok(payments);
     }
 
@@ -185,22 +185,22 @@ public class AnalyticsController {
             content = @Content(array = @ArraySchema(schema = @Schema(implementation = CategoryStatisticsDto.class)))),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{id}/category-statistics\"}"))),
+                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{userId}/category-statistics\"}"))),
         @ApiResponse(responseCode = "403", description = "Access denied - admin role required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{id}/category-statistics\"}"))),
+                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{userId}/category-statistics\"}"))),
         @ApiResponse(responseCode = "404", description = "User not found",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"User not found with id: 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\"code\":\"USER_NOT_FOUND\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{id}/category-statistics\"}"))),
+                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"User not found with id: 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\"code\":\"USER_NOT_FOUND\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{userId}/category-statistics\"}"))),
         @ApiResponse(responseCode = "500", description = "Internal server error",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{id}/category-statistics\"}")))
+                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/analytics/users/{userId}/category-statistics\"}")))
     })
-    @GetMapping("/users/{id}/category-statistics")
+    @GetMapping("/users/{userId}/category-statistics")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<CategoryStatisticsDto>> getCategoryStatistics(@PathVariable UUID id) {
-        log.debug("Getting category statistics for user: {}", id);
-        List<CategoryStatisticsDto> statistics = analyticsService.getCategoryStatistics(id);
+    public ResponseEntity<List<CategoryStatisticsDto>> getCategoryStatistics(@PathVariable UUID userId) {
+        log.debug("Getting category statistics for user: {}", userId);
+        List<CategoryStatisticsDto> statistics = analyticsService.getCategoryStatistics(userId);
         return ResponseEntity.ok(statistics);
     }
 }

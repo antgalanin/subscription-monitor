@@ -1,6 +1,8 @@
 package com.subscriptionmonitor.controller;
 
-import com.subscriptionmonitor.dto.UserDto;
+import com.subscriptionmonitor.dto.CreateUserRequest;
+import com.subscriptionmonitor.dto.UpdateUserRequest;
+import com.subscriptionmonitor.dto.UserResponse;
 import com.subscriptionmonitor.exception.notfound.UserNotFoundException;
 import com.subscriptionmonitor.exception.validation.UserValidationException;
 import com.subscriptionmonitor.model.entity.User;
@@ -16,6 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -45,7 +48,7 @@ public class UserController {
     )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "User successfully created",
-            content = @Content(schema = @Schema(implementation = UserDto.class))),
+            content = @Content(schema = @Schema(implementation = UserResponse.class))),
         @ApiResponse(responseCode = "400", description = "Validation failed",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":400,\"error\":\"Bad Request\",\"message\":\"Username is required\",\"code\":\"USER_VALIDATION_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users\"}"))),
@@ -64,11 +67,11 @@ public class UserController {
     })
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserDto> create(@RequestBody UserDto userDto) throws UserValidationException, UserNotFoundException {
+    public ResponseEntity<UserResponse> create(@Valid @RequestBody CreateUserRequest request) throws UserValidationException, UserNotFoundException {
         User currentUser = userService.findById(securityService.getCurrentUserId());
-        User user = toEntity(userDto);
+        User user = toEntityFromCreateRequest(request);
         User created = userService.create(user, currentUser);
-        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(created));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
     }
 
     @Operation(
@@ -77,7 +80,7 @@ public class UserController {
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "User found",
-            content = @Content(schema = @Schema(implementation = UserDto.class))),
+            content = @Content(schema = @Schema(implementation = UserResponse.class))),
         @ApiResponse(responseCode = "403", description = "Access denied",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"You do not have permission to access this resource\",\"code\":\"ACCESS_FORBIDDEN\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/{id}\"}"))),
@@ -93,9 +96,9 @@ public class UserController {
     })
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#id)")
-    public ResponseEntity<UserDto> getById(@Parameter(description = "User ID") @PathVariable UUID id) throws UserNotFoundException {
+    public ResponseEntity<UserResponse> getById(@Parameter(description = "User ID") @PathVariable UUID id) throws UserNotFoundException {
         User user = userService.findById(id);
-        return ResponseEntity.ok(toDto(user));
+        return ResponseEntity.ok(toResponse(user));
     }
 
     @Operation(
@@ -116,65 +119,11 @@ public class UserController {
     })
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<UserDto>> getAll() {
-        List<UserDto> users = userService.findAll().stream()
-                .map(this::toDto)
+    public ResponseEntity<List<UserResponse>> getAll() {
+        List<UserResponse> users = userService.findAll().stream()
+                .map(this::toResponse)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(users);
-    }
-
-    @Operation(
-            summary = "Найти пользователя по username",
-            description = "Возвращает пользователя с указанным именем. Доступ: только ADMIN."
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "User found",
-            content = @Content(schema = @Schema(implementation = UserDto.class))),
-        @ApiResponse(responseCode = "401", description = "Authentication required",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/username/{username}\"}"))),
-        @ApiResponse(responseCode = "403", description = "Access denied - admin role required",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/username/{username}\"}"))),
-        @ApiResponse(responseCode = "404", description = "User not found",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"User with username john_doe not found\",\"code\":\"USER_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/username/{username}\"}"))),
-        @ApiResponse(responseCode = "500", description = "Internal server error",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/username/{username}\"}")))
-    })
-    @GetMapping("/username/{username}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserDto> getByUsername(@Parameter(description = "Username") @PathVariable String username) throws UserNotFoundException {
-        User user = userService.findByUsername(username);
-        return ResponseEntity.ok(toDto(user));
-    }
-
-    @Operation(
-            summary = "Найти пользователя по email",
-            description = "Возвращает пользователя с указанным email. Доступ: только ADMIN."
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "User found",
-            content = @Content(schema = @Schema(implementation = UserDto.class))),
-        @ApiResponse(responseCode = "401", description = "Authentication required",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/email/{email}\"}"))),
-        @ApiResponse(responseCode = "403", description = "Access denied - admin role required",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access is denied\",\"code\":\"ACCESS_DENIED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/email/{email}\"}"))),
-        @ApiResponse(responseCode = "404", description = "User not found",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":404,\"error\":\"Not Found\",\"message\":\"User with email john@example.com not found\",\"code\":\"USER_NOT_FOUND\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/email/{email}\"}"))),
-        @ApiResponse(responseCode = "500", description = "Internal server error",
-            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
-                examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/email/{email}\"}")))
-    })
-    @GetMapping("/email/{email}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserDto> getByEmail(@Parameter(description = "Email") @PathVariable String email) throws UserNotFoundException {
-        User user = userService.findByEmail(email);
-        return ResponseEntity.ok(toDto(user));
     }
 
     @Operation(
@@ -183,6 +132,9 @@ public class UserController {
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List of users retrieved successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid role value",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":400,\"error\":\"Bad Request\",\"message\":\"Invalid value 'MODERATOR' for parameter 'role'. Allowed values: USER, ADMIN\",\"code\":\"INVALID_PARAMETER\",\"timestamp\":\"2025-11-01T15:39:19\",\"path\":\"/api/users/role/MODERATOR\"}"))),
         @ApiResponse(responseCode = "401", description = "Authentication required",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication is required to access this resource\",\"code\":\"AUTHENTICATION_REQUIRED\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/role/{role}\"}"))),
@@ -195,9 +147,9 @@ public class UserController {
     })
     @GetMapping("/role/{role}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<UserDto>> getByRole(@Parameter(description = "User role (USER or ADMIN)") @PathVariable UserRole role) {
-        List<UserDto> users = userService.findByRole(role).stream()
-                .map(this::toDto)
+    public ResponseEntity<List<UserResponse>> getByRole(@Parameter(description = "User role (USER or ADMIN)") @PathVariable UserRole role) {
+        List<UserResponse> users = userService.findByRole(role).stream()
+                .map(this::toResponse)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(users);
     }
@@ -208,7 +160,7 @@ public class UserController {
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "User updated successfully",
-            content = @Content(schema = @Schema(implementation = UserDto.class))),
+            content = @Content(schema = @Schema(implementation = UserResponse.class))),
         @ApiResponse(responseCode = "400", description = "Validation failed",
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":400,\"error\":\"Bad Request\",\"message\":\"Email is required\",\"code\":\"USER_VALIDATION_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/users/{id}\"}"))),
@@ -227,12 +179,12 @@ public class UserController {
     })
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @securityService.isOwner(#id)")
-    public ResponseEntity<UserDto> update(@Parameter(description = "User ID") @PathVariable UUID id, @RequestBody UserDto userDto) throws UserNotFoundException, UserValidationException {
+    public ResponseEntity<UserResponse> update(@Parameter(description = "User ID") @PathVariable UUID id, @Valid @RequestBody UpdateUserRequest request) throws UserNotFoundException, UserValidationException {
         User currentUser = userService.findById(securityService.getCurrentUserId());
-        userDto.setId(id);
-        User user = toEntity(userDto);
+        User existing = userService.findById(id);
+        User user = toEntityFromUpdateRequest(id, request, existing);
         User updated = userService.update(user, currentUser);
-        return ResponseEntity.ok(toDto(updated));
+        return ResponseEntity.ok(toResponse(updated));
     }
 
     @Operation(
@@ -261,35 +213,38 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    private UserDto toDto(User user) {
-        return new UserDto(
+    private UserResponse toResponse(User user) {
+        return new UserResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
-                null, // Never return password in DTO
                 user.getRole(),
                 user.getNotificationDays(),
                 user.getCreatedAt()
         );
     }
 
-    private User toEntity(UserDto dto) {
+    private User toEntityFromCreateRequest(CreateUserRequest request) {
         User user = new User();
-        if (dto.getId() != null) {
-            user.setId(dto.getId());
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPassword(request.getPassword());
+        user.setRole(request.getRole());
+        if (request.getNotificationDays() != null) {
+            user.setNotificationDays(request.getNotificationDays());
         }
-        user.setUsername(dto.getUsername());
-        user.setEmail(dto.getEmail());
-        user.setPassword(dto.getPassword());
-        if (dto.getRole() != null) {
-            user.setRole(dto.getRole());
-        }
-        if (dto.getNotificationDays() != null) {
-            user.setNotificationDays(dto.getNotificationDays());
-        }
-        if (dto.getCreatedAt() != null) {
-            user.setCreatedAt(dto.getCreatedAt());
-        }
+        return user;
+    }
+
+    private User toEntityFromUpdateRequest(UUID id, UpdateUserRequest request, User existing) {
+        User user = new User();
+        user.setId(id);
+        user.setUsername(existing.getUsername());
+        user.setEmail(request.getEmail() != null ? request.getEmail() : existing.getEmail());
+        user.setPassword(request.getPassword() != null ? request.getPassword() : existing.getPassword());
+        user.setRole(request.getRole() != null ? request.getRole() : existing.getRole());
+        user.setNotificationDays(request.getNotificationDays() != null ? request.getNotificationDays() : existing.getNotificationDays());
+        user.setCreatedAt(existing.getCreatedAt());
         return user;
     }
 }

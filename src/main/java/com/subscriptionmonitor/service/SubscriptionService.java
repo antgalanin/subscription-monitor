@@ -29,6 +29,7 @@ public class SubscriptionService {
     private final SubscriptionRepository subscriptionRepository;
     private final NotificationService notificationService;
     private final UserService userService;
+    private final CategoryService categoryService;
 
     public Subscription create(Subscription subscription) throws SubscriptionValidationException {
         log.debug("Creating subscription: {}", subscription.getName());
@@ -354,6 +355,11 @@ public class SubscriptionService {
         }
         if (subscription.getCategoryId() == null) {
             throw new SubscriptionValidationException("Category ID cannot be null");
+        }
+        try {
+            categoryService.findById(subscription.getCategoryId());
+        } catch (com.subscriptionmonitor.exception.notfound.CategoryNotFoundException e) {
+            throw new SubscriptionValidationException("Category not found with id: " + subscription.getCategoryId());
         }
         if (subscription.getPayment() == null) {
             throw new SubscriptionValidationException("Payment information cannot be null");
