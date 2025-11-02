@@ -167,6 +167,7 @@ public class UserPanel extends JPanel {
                                 "Профиль успешно обновлен",
                                 "Успех",
                                 JOptionPane.INFORMATION_MESSAGE);
+                        mainGui.refreshUserRelatedData();
                     }
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(UserPanel.this,

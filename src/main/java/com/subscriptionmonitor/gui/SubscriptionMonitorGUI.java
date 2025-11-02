@@ -80,7 +80,7 @@ public class SubscriptionMonitorGUI extends JFrame {
         notificationPanel = new NotificationPanel(restClient);
         tabbedPane.addTab("Уведомления", notificationPanel);
 
-        profilePanel = new ProfilePanel(restClient);
+        profilePanel = new ProfilePanel(restClient, this);
         tabbedPane.addTab("Профиль", profilePanel);
 
         if (restClient.isAdmin()) {
@@ -158,6 +158,7 @@ public class SubscriptionMonitorGUI extends JFrame {
 
     public void refreshSubscriptionRelatedData() {
         subscriptionPanel.loadData();
+        categoryPanel.loadData();
         statisticsPanel.loadData();
         notificationPanel.loadData();
     }

@@ -1,8 +1,10 @@
 package com.subscriptionmonitor.gui.dialog;
 
 import com.subscriptionmonitor.dto.UserDto;
+import com.subscriptionmonitor.gui.exception.ApiException;
 import com.subscriptionmonitor.gui.util.RestClient;
 import com.subscriptionmonitor.gui.util.StyleUtils;
+import com.subscriptionmonitor.gui.util.ValidationUtils;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -163,41 +165,46 @@ public class RegistrationDialog extends JDialog {
         String confirmPassword = new String(confirmPasswordField.getPassword());
         Integer notificationDays = (Integer) notificationDaysSpinner.getValue();
 
-        if (username.isEmpty() || email.isEmpty() || password.isEmpty()) {
+        ValidationUtils.ValidationResult usernameValidation = ValidationUtils.validateUsername(username);
+        if (!usernameValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Пожалуйста, заполните все обязательные поля",
+                    usernameValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if (username.length() < 3 || username.length() > 50) {
+        ValidationUtils.ValidationResult emailValidation = ValidationUtils.validateEmail(email);
+        if (!emailValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Логин должен быть от 3 до 50 символов",
+                    emailValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+        ValidationUtils.ValidationResult passwordValidation = ValidationUtils.validatePassword(password);
+        if (!passwordValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Некорректный формат email",
+                    passwordValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if (password.length() < 6) {
+        ValidationUtils.ValidationResult passwordsMatchValidation = ValidationUtils.validatePasswordsMatch(password, confirmPassword);
+        if (!passwordsMatchValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Пароль должен быть не менее 6 символов",
+                    passwordsMatchValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if (!password.equals(confirmPassword)) {
+        ValidationUtils.ValidationResult notificationDaysValidation = ValidationUtils.validateNotificationDays(notificationDays);
+        if (!notificationDaysValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Пароли не совпадают",
+                    notificationDaysValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.ERROR_MESSAGE);
             return;
@@ -225,20 +232,30 @@ public class RegistrationDialog extends JDialog {
                     registered = true;
                     dispose();
                 } catch (Exception ex) {
-                    String errorMessage = ex.getMessage();
-                    if (errorMessage.contains("409")) {
+                    Throwable cause = ex.getCause();
+                    if (cause instanceof ApiException) {
+                        ApiException apiEx = (ApiException) cause;
+                        String message;
+                        String title;
+
+                        if (apiEx.hasErrorCode("DUPLICATE_ENTRY")) {
+                            message = "Пользователь с таким логином или email уже существует";
+                            title = "Дубликат данных";
+                        } else if (apiEx.hasErrorCode("VALIDATION_ERROR") || apiEx.hasErrorCode("USER_VALIDATION_ERROR")) {
+                            message = apiEx.getUserFriendlyMessage();
+                            title = "Ошибка валидации";
+                        } else {
+                            message = apiEx.getUserFriendlyMessage();
+                            title = "Ошибка регистрации";
+                        }
+
                         JOptionPane.showMessageDialog(RegistrationDialog.this,
-                                "Пользователь с таким логином или email уже существует",
-                                "Ошибка регистрации",
-                                JOptionPane.ERROR_MESSAGE);
-                    } else if (errorMessage.contains("400")) {
-                        JOptionPane.showMessageDialog(RegistrationDialog.this,
-                                "Ошибка валидации данных: " + errorMessage,
-                                "Ошибка регистрации",
+                                message,
+                                title,
                                 JOptionPane.ERROR_MESSAGE);
                     } else {
                         JOptionPane.showMessageDialog(RegistrationDialog.this,
-                                "Ошибка регистрации: " + errorMessage,
+                                "Ошибка регистрации: " + ex.getMessage(),
                                 "Ошибка",
                                 JOptionPane.ERROR_MESSAGE);
                     }

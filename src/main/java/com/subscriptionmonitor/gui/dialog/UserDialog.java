@@ -1,8 +1,11 @@
 package com.subscriptionmonitor.gui.dialog;
 
 import com.subscriptionmonitor.dto.UserDto;
+import com.subscriptionmonitor.gui.exception.ApiException;
+import com.subscriptionmonitor.gui.util.ErrorDialogUtils;
 import com.subscriptionmonitor.gui.util.RestClient;
 import com.subscriptionmonitor.gui.util.StyleUtils;
+import com.subscriptionmonitor.gui.util.ValidationUtils;
 import com.subscriptionmonitor.model.enums.UserRole;
 
 import javax.swing.*;
@@ -182,25 +185,19 @@ public class UserDialog extends JDialog {
         UserRole role = (UserRole) roleComboBox.getSelectedItem();
         Integer notificationDays = (Integer) notificationDaysSpinner.getValue();
 
-        if (username.isEmpty()) {
+        ValidationUtils.ValidationResult usernameValidation = ValidationUtils.validateUsername(username);
+        if (!usernameValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Логин обязателен",
+                    usernameValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if (email.isEmpty()) {
+        ValidationUtils.ValidationResult emailValidation = ValidationUtils.validateEmail(email);
+        if (!emailValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Email обязателен",
-                    "Ошибка валидации",
-                    JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-            JOptionPane.showMessageDialog(this,
-                    "Некорректный формат email",
+                    emailValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.ERROR_MESSAGE);
             return;
@@ -214,9 +211,21 @@ public class UserDialog extends JDialog {
             return;
         }
 
-        if (!password.isEmpty() && password.length() < 6) {
+        if (!password.isEmpty()) {
+            ValidationUtils.ValidationResult passwordValidation = ValidationUtils.validatePassword(password);
+            if (!passwordValidation.isValid()) {
+                JOptionPane.showMessageDialog(this,
+                        passwordValidation.getErrorMessage(),
+                        "Ошибка валидации",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        }
+
+        ValidationUtils.ValidationResult notificationDaysValidation = ValidationUtils.validateNotificationDays(notificationDays);
+        if (!notificationDaysValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Пароль должен быть не менее 6 символов",
+                    notificationDaysValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.ERROR_MESSAGE);
             return;
@@ -262,23 +271,7 @@ public class UserDialog extends JDialog {
                     saved = true;
                     dispose();
                 } catch (Exception ex) {
-                    String errorMessage = ex.getMessage();
-                    if (errorMessage.contains("409")) {
-                        JOptionPane.showMessageDialog(UserDialog.this,
-                                "Пользователь с таким логином или email уже существует",
-                                "Ошибка",
-                                JOptionPane.ERROR_MESSAGE);
-                    } else if (errorMessage.contains("403")) {
-                        JOptionPane.showMessageDialog(UserDialog.this,
-                                "У вас нет прав для выполнения этой операции",
-                                "Ошибка доступа",
-                                JOptionPane.ERROR_MESSAGE);
-                    } else {
-                        JOptionPane.showMessageDialog(UserDialog.this,
-                                "Ошибка сохранения: " + errorMessage,
-                                "Ошибка",
-                                JOptionPane.ERROR_MESSAGE);
-                    }
+                    ErrorDialogUtils.showErrorWithPrefix(UserDialog.this, ex, "Ошибка сохранения", "Ошибка");
                 } finally {
                     saveButton.setEnabled(true);
                     saveButton.setText("Сохранить");

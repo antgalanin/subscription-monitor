@@ -2,6 +2,7 @@ package com.subscriptionmonitor.gui.panel;
 
 import com.subscriptionmonitor.dto.CategoryDto;
 import com.subscriptionmonitor.gui.model.CategoryTableModel;
+import com.subscriptionmonitor.gui.util.ErrorDialogUtils;
 import com.subscriptionmonitor.gui.util.RestClient;
 import com.subscriptionmonitor.gui.util.StyleUtils;
 
@@ -58,20 +59,20 @@ public class CategoryPanel extends JPanel {
 
         if (!restClient.isAdmin()) {
             table.removeColumn(table.getColumnModel().getColumn(3));
+            table.removeColumn(table.getColumnModel().getColumn(2));
         }
 
         javax.swing.table.DefaultTableCellRenderer centerRenderer = new javax.swing.table.DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(javax.swing.JLabel.CENTER);
 
-        table.getColumnModel().getColumn(1).setCellRenderer(centerRenderer);
-
         if (restClient.isAdmin()) {
+            table.getColumnModel().getColumn(1).setCellRenderer(centerRenderer);
             table.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
             table.getColumnModel().getColumn(3).setCellRenderer(centerRenderer);
             table.getColumnModel().getColumn(4).setCellRenderer(centerRenderer);
         } else {
+            table.getColumnModel().getColumn(1).setCellRenderer(centerRenderer);
             table.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
-            table.getColumnModel().getColumn(3).setCellRenderer(centerRenderer);
         }
 
         JScrollPane scrollPane = StyleUtils.createStyledScrollPane(table);
@@ -139,7 +140,7 @@ public class CategoryPanel extends JPanel {
 
                 for (CategoryDto category : categories) {
                     String ownerUsername = null;
-                    if (category.getCreatedByUserId() != null) {
+                    if (restClient.isAdmin() && category.getCreatedByUserId() != null) {
                         try {
                             com.subscriptionmonitor.dto.UserDto user = restClient.getUserById(category.getCreatedByUserId());
                             ownerUsername = user.getUsername();
@@ -162,10 +163,7 @@ public class CategoryPanel extends JPanel {
                     java.util.List<com.subscriptionmonitor.gui.model.CategoryTableModel.CategoryWithOwner> data = get();
                     tableModel.setData(data);
                 } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(CategoryPanel.this,
-                            "Ошибка загрузки данных: " + ex.getMessage(),
-                            "Ошибка",
-                            JOptionPane.ERROR_MESSAGE);
+                    ErrorDialogUtils.showErrorWithPrefix(CategoryPanel.this, ex, "Ошибка загрузки данных", "Ошибка");
                 } finally {
                     progressBar.setVisible(false);
                     setButtonsEnabled(true);
@@ -251,16 +249,12 @@ public class CategoryPanel extends JPanel {
             protected void done() {
                 try {
                     get();
-                    JOptionPane.showMessageDialog(CategoryPanel.this,
+                    ErrorDialogUtils.showSuccess(CategoryPanel.this,
                             "Категория успешно удалена",
-                            "Успех",
-                            JOptionPane.INFORMATION_MESSAGE);
+                            "Успех");
                     mainGui.refreshCategoryRelatedData();
                 } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(CategoryPanel.this,
-                            "Ошибка удаления: " + ex.getMessage(),
-                            "Ошибка",
-                            JOptionPane.ERROR_MESSAGE);
+                    ErrorDialogUtils.showErrorWithPrefix(CategoryPanel.this, ex, "Ошибка удаления", "Ошибка");
                 } finally {
                     progressBar.setVisible(false);
                     setButtonsEnabled(true);
@@ -290,14 +284,14 @@ public class CategoryPanel extends JPanel {
             return false;
         }
 
+        if (restClient.isAdmin()) {
+            return true;
+        }
+
         boolean isSystemCategory = category.getType() == com.subscriptionmonitor.model.enums.CategoryType.SYSTEM;
         boolean isOwnCategory = category.getCreatedByUserId() != null
                 && category.getCreatedByUserId().equals(restClient.getCurrentUserId());
 
-        if (restClient.isAdmin()) {
-            return isSystemCategory || isOwnCategory;
-        } else {
-            return !isSystemCategory && isOwnCategory;
-        }
+        return !isSystemCategory && isOwnCategory;
     }
 }

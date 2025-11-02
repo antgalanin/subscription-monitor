@@ -2,7 +2,9 @@ package com.subscriptionmonitor.service;
 
 import com.subscriptionmonitor.exception.notfound.CategoryNotFoundException;
 import com.subscriptionmonitor.model.entity.Category;
+import com.subscriptionmonitor.model.entity.User;
 import com.subscriptionmonitor.model.enums.CategoryType;
+import com.subscriptionmonitor.model.enums.UserRole;
 import com.subscriptionmonitor.repository.CategoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +38,8 @@ class CategoryServiceTest {
     private UUID userId;
     private UUID category1Id;
     private UUID category2Id;
+    private User mockAdminUser;
+    private User mockRegularUser;
 
     @BeforeEach
     void setUp() {
@@ -43,6 +47,12 @@ class CategoryServiceTest {
         userId = UUID.randomUUID();
         category1Id = UUID.randomUUID();
         category2Id = UUID.randomUUID();
+
+        mockAdminUser = new User("admin", "admin@test.com", "password", UserRole.ADMIN, 5);
+        mockAdminUser.setId(userId);
+
+        mockRegularUser = new User("user", "user@test.com", "password", UserRole.USER, 5);
+        mockRegularUser.setId(UUID.randomUUID());
 
         testCategory = new Category("Streaming", CategoryType.SYSTEM, userId);
         testCategory.setId(testCategoryId);
@@ -53,7 +63,7 @@ class CategoryServiceTest {
     void testCreateCategory_Success() throws Exception {
         when(categoryRepository.save(any(Category.class))).thenReturn(testCategory);
 
-        Category created = categoryService.create(testCategory);
+        Category created = categoryService.create(testCategory, mockAdminUser);
 
         assertNotNull(created);
         assertEquals(testCategoryId, created.getId());
@@ -171,10 +181,10 @@ class CategoryServiceTest {
         Category updatedCategory = new Category("Updated Name", CategoryType.SYSTEM, userId);
         updatedCategory.setId(testCategoryId);
 
-        when(categoryRepository.existsById(testCategoryId)).thenReturn(true);
+        when(categoryRepository.findById(testCategoryId)).thenReturn(Optional.of(testCategory));
         when(categoryRepository.save(any(Category.class))).thenReturn(updatedCategory);
 
-        Category updated = categoryService.update(updatedCategory);
+        Category updated = categoryService.update(updatedCategory, mockAdminUser);
 
         assertEquals("Updated Name", updated.getName());
         assertEquals(testCategoryId, updated.getId());
@@ -185,10 +195,10 @@ class CategoryServiceTest {
     @Test
     @DisplayName("Удаление категории")
     void testDeleteCategory_Success() throws Exception {
-        when(categoryRepository.existsById(testCategoryId)).thenReturn(true);
+        when(categoryRepository.findById(testCategoryId)).thenReturn(Optional.of(testCategory));
         doNothing().when(categoryRepository).deleteById(testCategoryId);
 
-        categoryService.delete(testCategoryId);
+        categoryService.delete(testCategoryId, mockAdminUser);
 
         verify(categoryRepository, times(1)).deleteById(testCategoryId);
     }

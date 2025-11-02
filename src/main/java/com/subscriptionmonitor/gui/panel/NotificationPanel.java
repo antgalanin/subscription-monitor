@@ -181,11 +181,11 @@ public class NotificationPanel extends JPanel {
             protected void done() {
                 try {
                     get();
-                    tableModel.removeNotification(selectedRow);
                     JOptionPane.showMessageDialog(NotificationPanel.this,
                             "Уведомление успешно удалено",
                             "Успех",
                             JOptionPane.INFORMATION_MESSAGE);
+                    loadData();
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(NotificationPanel.this,
                             "Ошибка удаления: " + ex.getMessage(),

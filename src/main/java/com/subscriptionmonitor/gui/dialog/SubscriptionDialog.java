@@ -3,8 +3,10 @@ package com.subscriptionmonitor.gui.dialog;
 import com.subscriptionmonitor.dto.CategoryDto;
 import com.subscriptionmonitor.dto.PaymentDto;
 import com.subscriptionmonitor.dto.SubscriptionDto;
+import com.subscriptionmonitor.gui.exception.ApiException;
 import com.subscriptionmonitor.gui.util.RestClient;
 import com.subscriptionmonitor.gui.util.StyleUtils;
+import com.subscriptionmonitor.gui.util.ValidationUtils;
 import com.subscriptionmonitor.model.enums.Currency;
 
 import javax.swing.*;
@@ -393,43 +395,34 @@ public class SubscriptionDialog extends JDialog {
         Date nextBillingDateValue = (Date) nextBillingDateSpinner.getValue();
         Boolean isActive = activeCheckBox.isSelected();
 
-        if (name.isEmpty()) {
+        ValidationUtils.ValidationResult nameValidation = ValidationUtils.validateName(name);
+        if (!nameValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Название подписки обязательно",
+                    nameValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if (selectedCategory == null) {
+        ValidationUtils.ValidationResult categoryValidation = ValidationUtils.validateNotNull(selectedCategory, "Категория");
+        if (!categoryValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Выберите категорию",
+                    categoryValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if (costStr.isEmpty()) {
+        ValidationUtils.ValidationResult costValidation = ValidationUtils.validateCost(costStr);
+        if (!costValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Укажите стоимость",
+                    costValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        BigDecimal cost;
-        try {
-            cost = new BigDecimal(costStr);
-            if (cost.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new NumberFormatException();
-            }
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this,
-                    "Стоимость должна быть положительным числом",
-                    "Ошибка валидации",
-                    JOptionPane.ERROR_MESSAGE);
-            return;
-        }
+        BigDecimal cost = new BigDecimal(costStr);
 
         LocalDate nextBillingDate = nextBillingDateValue.toInstant()
                 .atZone(ZoneId.systemDefault())
@@ -480,8 +473,16 @@ public class SubscriptionDialog extends JDialog {
                     saved = true;
                     dispose();
                 } catch (Exception ex) {
+                    Throwable cause = ex.getCause();
+                    String message;
+                    if (cause instanceof ApiException) {
+                        ApiException apiEx = (ApiException) cause;
+                        message = apiEx.getUserFriendlyMessage();
+                    } else {
+                        message = ex.getMessage();
+                    }
                     JOptionPane.showMessageDialog(SubscriptionDialog.this,
-                            "Ошибка сохранения: " + ex.getMessage(),
+                            "Ошибка сохранения: " + message,
                             "Ошибка",
                             JOptionPane.ERROR_MESSAGE);
                 } finally {

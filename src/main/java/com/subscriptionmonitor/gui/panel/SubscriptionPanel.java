@@ -191,10 +191,12 @@ public class SubscriptionPanel extends JPanel {
 
     private void addSubscription() {
         try {
-            List<com.subscriptionmonitor.dto.CategoryDto> categories = restClient.getAllCategories();
+            List<com.subscriptionmonitor.dto.CategoryDto> categories = restClient.getAllCategories().stream()
+                    .filter(c -> c.getType() != com.subscriptionmonitor.model.enums.CategoryType.LEGACY)
+                    .collect(java.util.stream.Collectors.toList());
             if (categories.isEmpty()) {
                 JOptionPane.showMessageDialog(this,
-                        "Сначала создайте хотя бы одну категорию",
+                        "Сначала создайте хотя бы одну активную категорию",
                         "Нет категорий",
                         JOptionPane.WARNING_MESSAGE);
                 return;
@@ -228,7 +230,9 @@ public class SubscriptionPanel extends JPanel {
 
         try {
             SubscriptionDto subscription = tableModel.getSubscriptionAt(selectedRow);
-            List<com.subscriptionmonitor.dto.CategoryDto> categories = restClient.getAllCategories();
+            List<com.subscriptionmonitor.dto.CategoryDto> categories = restClient.getAllCategories().stream()
+                    .filter(c -> c.getType() != com.subscriptionmonitor.model.enums.CategoryType.LEGACY)
+                    .collect(java.util.stream.Collectors.toList());
 
             com.subscriptionmonitor.gui.dialog.SubscriptionDialog dialog =
                     new com.subscriptionmonitor.gui.dialog.SubscriptionDialog(

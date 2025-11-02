@@ -357,7 +357,10 @@ public class SubscriptionService {
             throw new SubscriptionValidationException("Category ID cannot be null");
         }
         try {
-            categoryService.findById(subscription.getCategoryId());
+            com.subscriptionmonitor.model.entity.Category category = categoryService.findById(subscription.getCategoryId());
+            if (category.getType() == com.subscriptionmonitor.model.enums.CategoryType.LEGACY) {
+                throw new SubscriptionValidationException("Cannot create or update subscription with LEGACY category. Please select an active category.");
+            }
         } catch (com.subscriptionmonitor.exception.notfound.CategoryNotFoundException e) {
             throw new SubscriptionValidationException("Category not found with id: " + subscription.getCategoryId());
         }

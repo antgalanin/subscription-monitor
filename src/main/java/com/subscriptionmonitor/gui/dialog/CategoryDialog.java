@@ -125,28 +125,18 @@ public class CategoryDialog extends JDialog {
                 && categoryDto.getCreatedByUserId().equals(restClient.getCurrentUserId());
         boolean isSystemCategory = categoryDto.getType() == CategoryType.SYSTEM;
 
-        if (!restClient.isAdmin() && isSystemCategory) {
-            nameField.setEnabled(false);
-            typeComboBox.setEnabled(false);
-            saveButton.setEnabled(false);
-            JOptionPane.showMessageDialog(this,
-                    "Вы не можете редактировать системные категории",
-                    "Предупреждение",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        if (restClient.isAdmin()) {
-            if (!isSystemCategory && !isOwner) {
+        if (!restClient.isAdmin()) {
+            if (isSystemCategory) {
                 nameField.setEnabled(false);
                 typeComboBox.setEnabled(false);
                 saveButton.setEnabled(false);
                 JOptionPane.showMessageDialog(this,
-                        "Вы можете редактировать только системные категории или свои кастомные",
+                        "Вы не можете редактировать системные категории",
                         "Предупреждение",
                         JOptionPane.WARNING_MESSAGE);
+                return;
             }
-        } else {
+
             if (!isOwner) {
                 nameField.setEnabled(false);
                 typeComboBox.setEnabled(false);

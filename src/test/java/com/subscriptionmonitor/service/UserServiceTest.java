@@ -42,6 +42,8 @@ class UserServiceTest {
     private UUID user1Id;
     private UUID user2Id;
     private UUID user3Id;
+    private User mockAdminUser;
+    private User mockRegularUser;
 
     @BeforeEach
     void setUp() {
@@ -53,15 +55,23 @@ class UserServiceTest {
         testUser = new User("testuser", "test@example.com", "password123");
         testUser.setId(testUserId);
 
+        mockAdminUser = new User("admin", "admin@test.com", "password", UserRole.ADMIN, 5);
+        mockAdminUser.setId(UUID.randomUUID());
+
+        mockRegularUser = new User("user", "user@test.com", "password", UserRole.USER, 5);
+        mockRegularUser.setId(UUID.randomUUID());
+
         lenient().when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$hashedPassword");
     }
 
     @Test
     @DisplayName("Создание пользователя с корректными данными")
     void testCreateUser_Success() throws Exception {
+        when(userRepository.findByUsername(testUser.getUsername())).thenReturn(Optional.empty());
+        when(userRepository.findByEmail(testUser.getEmail())).thenReturn(Optional.empty());
         when(userRepository.save(any(User.class))).thenReturn(testUser);
 
-        User created = userService.create(testUser);
+        User created = userService.create(testUser, mockAdminUser);
 
         assertNotNull(created);
         assertEquals(testUserId, created.getId());
@@ -163,12 +173,12 @@ class UserServiceTest {
         updatedUser.setId(testUserId);
         updatedUser.setNotificationDays(7);
 
-        when(userRepository.existsById(testUserId)).thenReturn(true);
+        when(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser));
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
         when(userRepository.findByEmail("newemail@example.com")).thenReturn(Optional.empty());
         when(userRepository.save(any(User.class))).thenReturn(updatedUser);
 
-        User updated = userService.update(updatedUser);
+        User updated = userService.update(updatedUser, mockAdminUser);
 
         assertEquals("newemail@example.com", updated.getEmail());
         assertEquals(7, updated.getNotificationDays());

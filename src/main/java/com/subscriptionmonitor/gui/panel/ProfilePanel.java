@@ -1,14 +1,17 @@
 package com.subscriptionmonitor.gui.panel;
 
 import com.subscriptionmonitor.dto.UserDto;
+import com.subscriptionmonitor.gui.exception.ApiException;
 import com.subscriptionmonitor.gui.util.RestClient;
 import com.subscriptionmonitor.gui.util.StyleUtils;
+import com.subscriptionmonitor.gui.util.ValidationUtils;
 
 import javax.swing.*;
 import java.awt.*;
 
 public class ProfilePanel extends JPanel {
     private RestClient restClient;
+    private com.subscriptionmonitor.gui.SubscriptionMonitorGUI mainGui;
     private JProgressBar progressBar;
 
     private JLabel usernameLabel;
@@ -18,8 +21,9 @@ public class ProfilePanel extends JPanel {
     private JPasswordField newPasswordField;
     private JPasswordField confirmPasswordField;
 
-    public ProfilePanel(RestClient restClient) {
+    public ProfilePanel(RestClient restClient, com.subscriptionmonitor.gui.SubscriptionMonitorGUI mainGui) {
         this.restClient = restClient;
+        this.mainGui = mainGui;
         initComponents();
         loadData();
     }
@@ -255,17 +259,10 @@ public class ProfilePanel extends JPanel {
     private void updateEmail() {
         String newEmail = emailField.getText().trim();
 
-        if (newEmail.isEmpty()) {
+        ValidationUtils.ValidationResult emailValidation = ValidationUtils.validateEmail(newEmail);
+        if (!emailValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Email не может быть пустым",
-                    "Ошибка валидации",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        if (!newEmail.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
-            JOptionPane.showMessageDialog(this,
-                    "Некорректный формат email",
+                    emailValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.WARNING_MESSAGE);
             return;
@@ -288,9 +285,18 @@ public class ProfilePanel extends JPanel {
                             "Email успешно обновлён",
                             "Успех",
                             JOptionPane.INFORMATION_MESSAGE);
+                    mainGui.refreshUserRelatedData();
                 } catch (Exception ex) {
+                    Throwable cause = ex.getCause();
+                    String message;
+                    if (cause instanceof ApiException) {
+                        ApiException apiEx = (ApiException) cause;
+                        message = apiEx.getUserFriendlyMessage();
+                    } else {
+                        message = ex.getMessage();
+                    }
                     JOptionPane.showMessageDialog(ProfilePanel.this,
-                            "Ошибка обновления email: " + ex.getMessage(),
+                            "Ошибка обновления email: " + message,
                             "Ошибка",
                             JOptionPane.ERROR_MESSAGE);
                 } finally {
@@ -307,25 +313,28 @@ public class ProfilePanel extends JPanel {
         String newPassword = new String(newPasswordField.getPassword());
         String confirmPassword = new String(confirmPasswordField.getPassword());
 
-        if (currentPassword.isEmpty() || newPassword.isEmpty() || confirmPassword.isEmpty()) {
+        ValidationUtils.ValidationResult currentPasswordValidation = ValidationUtils.validatePassword(currentPassword);
+        if (!currentPasswordValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Все поля должны быть заполнены",
+                    "Текущий пароль: " + currentPasswordValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        if (newPassword.length() < 6) {
+        ValidationUtils.ValidationResult newPasswordValidation = ValidationUtils.validatePassword(newPassword);
+        if (!newPasswordValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Новый пароль должен содержать минимум 6 символов",
+                    "Новый пароль: " + newPasswordValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        if (!newPassword.equals(confirmPassword)) {
+        ValidationUtils.ValidationResult passwordsMatchValidation = ValidationUtils.validatePasswordsMatch(newPassword, confirmPassword);
+        if (!passwordsMatchValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Новый пароль и подтверждение не совпадают",
+                    passwordsMatchValidation.getErrorMessage(),
                     "Ошибка валидации",
                     JOptionPane.WARNING_MESSAGE);
             return;
@@ -352,8 +361,16 @@ public class ProfilePanel extends JPanel {
                     newPasswordField.setText("");
                     confirmPasswordField.setText("");
                 } catch (Exception ex) {
+                    Throwable cause = ex.getCause();
+                    String message;
+                    if (cause instanceof ApiException) {
+                        ApiException apiEx = (ApiException) cause;
+                        message = apiEx.getUserFriendlyMessage();
+                    } else {
+                        message = ex.getMessage();
+                    }
                     JOptionPane.showMessageDialog(ProfilePanel.this,
-                            "Ошибка смены пароля: " + ex.getMessage(),
+                            "Ошибка смены пароля: " + message,
                             "Ошибка",
                             JOptionPane.ERROR_MESSAGE);
                 } finally {

@@ -1,7 +1,9 @@
 package com.subscriptionmonitor.gui.dialog;
 
+import com.subscriptionmonitor.gui.exception.ApiException;
 import com.subscriptionmonitor.gui.util.RestClient;
 import com.subscriptionmonitor.gui.util.StyleUtils;
+import com.subscriptionmonitor.gui.util.ValidationUtils;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -128,9 +130,19 @@ public class LoginDialog extends JDialog {
         String username = usernameField.getText().trim();
         String password = new String(passwordField.getPassword());
 
-        if (username.isEmpty() || password.isEmpty()) {
+        ValidationUtils.ValidationResult usernameValidation = ValidationUtils.validateNotEmpty(username, "Логин");
+        if (!usernameValidation.isValid()) {
             JOptionPane.showMessageDialog(this,
-                    "Пожалуйста, введите логин и пароль",
+                    usernameValidation.getErrorMessage(),
+                    "Ошибка",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        ValidationUtils.ValidationResult passwordValidation = ValidationUtils.validateNotEmpty(password, "Пароль");
+        if (!passwordValidation.isValid()) {
+            JOptionPane.showMessageDialog(this,
+                    passwordValidation.getErrorMessage(),
                     "Ошибка",
                     JOptionPane.ERROR_MESSAGE);
             return;
@@ -158,8 +170,20 @@ public class LoginDialog extends JDialog {
                                 JOptionPane.ERROR_MESSAGE);
                     }
                 } catch (Exception ex) {
+                    Throwable cause = ex.getCause();
+                    String message;
+                    if (cause instanceof ApiException) {
+                        ApiException apiEx = (ApiException) cause;
+                        if (apiEx.getStatusCode() == 401 || apiEx.getStatusCode() == 403) {
+                            message = "Неверный логин или пароль";
+                        } else {
+                            message = apiEx.getUserFriendlyMessage();
+                        }
+                    } else {
+                        message = ex.getMessage();
+                    }
                     JOptionPane.showMessageDialog(LoginDialog.this,
-                            "Ошибка подключения: " + ex.getMessage(),
+                            "Ошибка подключения: " + message,
                             "Ошибка",
                             JOptionPane.ERROR_MESSAGE);
                     authenticated = false;
