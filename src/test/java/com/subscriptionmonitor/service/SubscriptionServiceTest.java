@@ -1,7 +1,11 @@
 package com.subscriptionmonitor.service;
 
 import com.subscriptionmonitor.exception.notfound.SubscriptionNotFoundException;
+import com.subscriptionmonitor.model.entity.Category;
 import com.subscriptionmonitor.model.entity.Subscription;
+import com.subscriptionmonitor.model.entity.User;
+import com.subscriptionmonitor.model.enums.CategoryType;
+import com.subscriptionmonitor.model.enums.UserRole;
 import com.subscriptionmonitor.repository.SubscriptionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +32,15 @@ class SubscriptionServiceTest {
     @Mock
     private SubscriptionRepository subscriptionRepository;
 
+    @Mock
+    private NotificationService notificationService;
+
+    @Mock
+    private UserService userService;
+
+    @Mock
+    private CategoryService categoryService;
+
     @InjectMocks
     private SubscriptionService subscriptionService;
 
@@ -38,6 +51,8 @@ class SubscriptionServiceTest {
     private UUID category2Id;
     private UUID subscription1Id;
     private UUID subscription2Id;
+    private User mockUser;
+    private Category mockCategory;
 
     @BeforeEach
     void setUp() {
@@ -48,6 +63,12 @@ class SubscriptionServiceTest {
         subscription1Id = UUID.randomUUID();
         subscription2Id = UUID.randomUUID();
 
+        mockUser = new User("testuser", "test@example.com", "password", UserRole.USER, 5);
+        mockUser.setId(userId);
+
+        mockCategory = new Category("Streaming", CategoryType.SYSTEM, null);
+        mockCategory.setId(category2Id);
+
         testSubscription = new Subscription(userId, category2Id, "Netflix", new BigDecimal("990.00"));
         testSubscription.setId(testSubscriptionId);
     }
@@ -55,6 +76,8 @@ class SubscriptionServiceTest {
     @Test
     @DisplayName("Создание подписки с корректными данными")
     void testCreateSubscription_Success() throws Exception {
+        when(userService.findById(userId)).thenReturn(mockUser);
+        when(categoryService.findById(category2Id)).thenReturn(mockCategory);
         when(subscriptionRepository.save(any(Subscription.class))).thenReturn(testSubscription);
 
         Subscription created = subscriptionService.create(testSubscription);
@@ -198,6 +221,9 @@ class SubscriptionServiceTest {
         updatedSubscription.setId(testSubscriptionId);
 
         when(subscriptionRepository.existsById(testSubscriptionId)).thenReturn(true);
+        when(subscriptionRepository.findById(testSubscriptionId)).thenReturn(Optional.of(testSubscription));
+        when(userService.findById(userId)).thenReturn(mockUser);
+        when(categoryService.findById(category2Id)).thenReturn(mockCategory);
         when(subscriptionRepository.save(any(Subscription.class))).thenReturn(updatedSubscription);
 
         Subscription updated = subscriptionService.update(updatedSubscription);

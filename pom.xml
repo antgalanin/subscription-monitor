@@ -24,6 +24,8 @@
   <properties>
     <java.version>24</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <jackson.version>2.18.2</jackson.version>
+    <flatlaf.version>3.5.4</flatlaf.version>
   </properties>
 
   <dependencies>
@@ -45,6 +47,12 @@
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
+    <!-- Spring Boot Security -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+
     <!-- PostgreSQL Driver -->
     <dependency>
       <groupId>org.postgresql</groupId>
@@ -58,6 +66,33 @@
       <artifactId>lombok</artifactId>
       <version>1.18.42</version>
       <optional>true</optional>
+    </dependency>
+
+    <!-- SpringDoc OpenAPI (Swagger) -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>2.7.0</version>
+    </dependency>
+
+    <!-- FlatLaf - Modern Look and Feel for Swing -->
+    <dependency>
+      <groupId>com.formdev</groupId>
+      <artifactId>flatlaf</artifactId>
+      <version>${flatlaf.version}</version>
+    </dependency>
+
+    <!-- Jackson for JSON processing (REST API client) -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jsr310</artifactId>
+      <version>${jackson.version}</version>
     </dependency>
 
     <!-- Spring Boot Test -->
@@ -99,6 +134,16 @@
               <artifactId>lombok</artifactId>
             </exclude>
           </excludes>
+        </configuration>
+      </plugin>
+
+      <!-- Exec Maven Plugin for GUI -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
+        <configuration>
+          <mainClass>com.subscriptionmonitor.gui.SubscriptionMonitorGUI</mainClass>
         </configuration>
       </plugin>
     </plugins>
