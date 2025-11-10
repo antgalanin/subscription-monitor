@@ -23,7 +23,8 @@ sql/
 ├── init_java.sql            # [РЕКОМЕНДУЕТСЯ] Инициализация для Spring Boot
 ├── init_full.sql            # Инициализация для курсовой ББД
 ├── create_database.sql      # Создание БД и расширений
-├── create_tables.sql        # Создание 5 таблиц
+├── create_tables_java.sql   # [JAVA MODE] Таблицы с VARCHAR + CHECK
+├── create_tables_full.sql   # [FULL MODE] Таблицы с PostgreSQL ENUM
 ├── constraints_java.sql     # [JAVA MODE] Constraints без триггеров
 ├── constraints_full.sql     # [FULL MODE] Constraints + триггеры
 ├── create_views.sql         # Аналитические витрины (10 views + 1 materialized)
@@ -87,12 +88,18 @@ psql -U postgres -d subscription_monitor -f clean-database.sql
 | `subscriptions` | Подписки пользователей            | user_id, payment_id, is_active    |
 | `notifications` | Уведомления                       | notification_type, is_sent        |
 
-### Enums (реализованы через VARCHAR CHECK)
+### Enums
 
-- **UserRole**: `USER`, `ADMIN`
-- **CategoryType**: `SYSTEM`, `CUSTOM`, `LEGACY`
-- **Currency**: `RUB`, `USD`, `EUR`
-- **NotificationType**: `UPCOMING_PAYMENT`, `PAYMENT_SUCCESSFUL`
+| Enum | Значения | JAVA MODE | FULL MODE |
+|------|----------|-----------|-----------|
+| **UserRole** | `USER`, `ADMIN` | VARCHAR + CHECK | PostgreSQL ENUM |
+| **CategoryType** | `SYSTEM`, `CUSTOM`, `LEGACY` | VARCHAR + CHECK | PostgreSQL ENUM |
+| **Currency** | `RUB`, `USD`, `EUR` | VARCHAR + CHECK | PostgreSQL ENUM |
+| **NotificationType** | `UPCOMING_PAYMENT`, `PAYMENT_SUCCESSFUL` | VARCHAR + CHECK | PostgreSQL ENUM |
+
+  **Реализация:**
+- **JAVA MODE** — VARCHAR + CHECK constraints (для совместимости с JPA/Hibernate)
+- **FULL MODE** — PostgreSQL ENUM типы (для строгой типизации на уровне БД)
 
 ### Отношения
 

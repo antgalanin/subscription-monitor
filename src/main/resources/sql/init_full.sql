@@ -10,7 +10,7 @@
 
 \echo '=== Шаг 2/8: Создание таблиц ==='
 \c subscription_monitor
-\i create_tables.sql
+\i create_tables_full.sql
 
 \echo '=== Шаг 3/8: Создание ограничений и триггеров ==='
 \i constraints_full.sql

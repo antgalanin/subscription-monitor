@@ -10,7 +10,7 @@
 
 \echo '=== Шаг 2/7: Создание таблиц ==='
 \c subscription_monitor
-\i create_tables.sql
+\i create_tables_java.sql
 
 \echo '=== Шаг 3/7: Создание constraints ==='
 \i constraints_java.sql
