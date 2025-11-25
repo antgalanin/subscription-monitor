@@ -30,7 +30,7 @@
 - REST API с документацией Swagger
 - Графический интерфейс на Swing с современным дизайном
 - Ролевая модель доступа (USER, ADMIN)
-- Интеграция с PostgreSQL с поддержкой двух режимов работы
+- Интеграция с PostgreSQL
 
 ### Стек технологий
 
@@ -88,9 +88,7 @@
 | `Currency` | `RUB`, `USD`, `EUR` | Валюта платежа |
 | `NotificationType` | `UPCOMING_PAYMENT`, `PAYMENT_SUCCESSFUL` | Тип уведомления (предстоящий платеж, успешное списание) |
 
-**Реализация в БД:**
-- **JAVA MODE** — VARCHAR + CHECK constraints (для совместимости с JPA/Hibernate)
-- **FULL MODE** — PostgreSQL ENUM типы (для строгой типизации на уровне БД)
+**Реализация в БД:** VARCHAR + CHECK constraints (для совместимости с JPA/Hibernate)
 
 ### Связи между сущностями
 
@@ -122,12 +120,11 @@
 
 ## База данных
 
-Проект поддерживает два режима работы с PostgreSQL:
+Проект использует PostgreSQL для хранения данных:
 
-| Режим | Назначение | Бизнес-логика | Компоненты                                                                                  | Тестовые данные |
-|-------|------------|---------------|---------------------------------------------------------------------------------------------|-----------------|
-| **JAVA MODE** | Интеграция со Spring Boot (курсовая ПКП) | Java сервисы | Таблицы + Ограничения целостности + Индексы + Витрины + Роли                                | Создаются через `DataInitializer.java` |
-| **FULL MODE** | Автономная БД (курсовая ББД) | PostgreSQL (триггеры) | Таблицы + Ограничения целостности + Индексы + Витрины + Роли + Триггеры + RLS + Типы данных | Создаются через `test_data.sql` |
+- Вся бизнес-логика реализована в Java сервисах
+- Enums реализованы через VARCHAR + CHECK constraints (для совместимости с JPA/Hibernate)
+- Тестовые данные создаются автоматически через `DataInitializer.java` при запуске приложения
 
 Подробная документация по базе данных доступна в [README.md](src/main/resources/sql/README.md)
 
@@ -410,11 +407,11 @@ psql -U postgres -c "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_s
 psql -U postgres -c "DROP DATABASE IF EXISTS subscription_monitor;"
 ```
 
-### 2. Инициализация БД (JAVA MODE)
+### 2. Инициализация БД
 
 ```bash
 cd src/main/resources/sql
-psql -U postgres -f init_java.sql
+psql -U postgres -f init.sql
 ```
 
 ### 3. Запуск Spring Boot с тестами
@@ -575,20 +572,15 @@ subscription-monitor/
 │   │   │   └── SubscriptionMonitorApplication.java
 │   │   └── resources/                        # Конфигурация и скрипты БД
 │   │       ├── sql/                          # SQL скрипты для PostgreSQL
-│   │       │   ├── init_java.sql
-│   │       │   ├── init_full.sql
-│   │       │   ├── create_database.sql
-│   │       │   ├── create_tables_java.sql
-│   │       │   ├── create_tables_full.sql
-│   │       │   ├── constraints_java.sql
-│   │       │   ├── constraints_full.sql
-│   │       │   ├── create_views.sql
-│   │       │   ├── create_indexes.sql
-│   │       │   ├── create_roles.sql
-│   │       │   ├── create_rls_policies.sql
-│   │       │   ├── test_data.sql
-│   │       │   ├── clean-database.sql
-│   │       │   └── README.md
+│   │       │   ├── init.sql                  # Главный скрипт инициализации
+│   │       │   ├── create_database.sql       # Создание БД и расширений
+│   │       │   ├── create_tables.sql         # Создание таблиц
+│   │       │   ├── constraints.sql           # Constraints (без триггеров)
+│   │       │   ├── create_views.sql          # Аналитические витрины (3 view)
+│   │       │   ├── create_indexes.sql        # Индексы для оптимизации
+│   │       │   ├── create_roles.sql          # Роли БД
+│   │       │   ├── clean-database.sql        # Очистка данных БД
+│   │       │   └── README.md                 # Документация по БД
 │   │       ├── application.properties
 │   │       └── logback-spring.xml
 │   └── test/java/com/subscriptionmonitor/    # Тесты (5 классов)

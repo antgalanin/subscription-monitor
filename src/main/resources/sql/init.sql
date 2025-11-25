@@ -1,8 +1,8 @@
 -- =============================================================================
--- Инициализация БД в JAVA MODE (для интеграции со Spring Boot)
+-- Инициализация БД (для интеграции со Spring Boot)
 -- =============================================================================
 
-\echo '=== JAVA MODE ==='
+\echo '=== Инициализация Subscription Monitor ==='
 \echo ''
 
 \echo '=== Шаг 1/7: Создание БД и расширений ==='
@@ -10,10 +10,10 @@
 
 \echo '=== Шаг 2/7: Создание таблиц ==='
 \c subscription_monitor
-\i create_tables_java.sql
+\i create_tables.sql
 
 \echo '=== Шаг 3/7: Создание constraints ==='
-\i constraints_java.sql
+\i constraints.sql
 
 \echo '=== Шаг 4/7: Создание аналитических витрин ==='
 \i create_views.sql
@@ -28,7 +28,7 @@
 \echo 'Данные будут созданы через DataInitializer.java при запуске приложения'
 \echo ''
 
-\echo '=== Инициализация JAVA MODE завершена ==='
+\echo '=== Инициализация завершена ==='
 \echo ''
 \echo 'Статистика БД:'
 SELECT 'users' AS table_name, COUNT(*) AS records FROM users

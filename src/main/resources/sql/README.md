@@ -2,64 +2,40 @@
 
 Скрипты инициализации и настройки базы данных PostgreSQL для системы мониторинга подписок.
 
-## Режимы работы БД
+## Архитектура БД
 
-База данных поддерживает **два режима**:
-
-### 🟢 JAVA MODE - Интеграция со Spring Boot (для курсовой ПКП)
-- БД без триггеров и RLS
-- Вся бизнес-логика в Java сервисах
-
-### 🔵 FULL MODE - Автономная БД (для курсовой ББД)
-- Полная бизнес-логика на уровне PostgreSQL
-- Триггеры для автоматического создания уведомлений
-- Автоматическая обработка платежей
-- Работает без Java приложения
+База данных интегрирована со Spring Boot приложением:
+- Вся бизнес-логика реализована в Java сервисах
+- Enums реализованы через VARCHAR + CHECK constraints (для совместимости с JPA/Hibernate)
+- Тестовые данные создаются автоматически через `DataInitializer.java` при запуске приложения
 
 ## Структура файлов
 
 ```
 sql/
-├── init_java.sql            # [РЕКОМЕНДУЕТСЯ] Инициализация для Spring Boot
-├── init_full.sql            # Инициализация для курсовой ББД
+├── init.sql                 # Главный скрипт инициализации
 ├── create_database.sql      # Создание БД и расширений
-├── create_tables_java.sql   # [JAVA MODE] Таблицы с VARCHAR + CHECK
-├── create_tables_full.sql   # [FULL MODE] Таблицы с PostgreSQL ENUM
-├── constraints_java.sql     # [JAVA MODE] Constraints без триггеров
-├── constraints_full.sql     # [FULL MODE] Constraints + триггеры
-├── create_views.sql         # Аналитические витрины (10 views + 1 materialized)
+├── create_tables.sql        # Таблицы с VARCHAR + CHECK для совместимости с JPA
+├── constraints.sql          # Constraints (без триггеров)
+├── create_views.sql         # Аналитические витрины (3 views для AnalyticsService)
 ├── create_indexes.sql       # Индексы для оптимизации (28 индексов)
 ├── create_roles.sql         # Роли БД (2 роли)
-├── create_rls_policies.sql  # Row Level Security (FULL MODE)
-├── test_data.sql            # Тестовые данные (FULL MODE)
-├── clean-database.sql       # Очистка БД
+├── clean-database.sql       # Очистка данных БД
 └── README.md                # Эта документация
 ```
 
 ## Быстрый старт
 
-### 🟢 JAVA MODE (для курсовой ПКП)
+### Инициализация БД
 
 ```bash
 cd src/main/resources/sql
-psql -U postgres -f init_java.sql
+psql -U postgres -f init.sql
 ```
 
 **Результат:**
-- БД создана без триггеров и RLS
+- БД создана без триггеров
 - Данные создаются через `DataInitializer.java` при запуске Spring Boot
-
-### 🔵 FULL MODE (для курсовой ББД)
-
-```bash
-cd src/main/resources/sql
-psql -U postgres -f init_full.sql
-```
-
-**Результат:**
-- БД создана с триггерами и RLS
-- Тестовые данные загружены
-- Триггеры автоматически создают уведомления
 
 ### 🗑️ Удаление и очистка БД
 
@@ -90,16 +66,14 @@ psql -U postgres -d subscription_monitor -f clean-database.sql
 
 ### Enums
 
-| Enum | Значения | JAVA MODE | FULL MODE |
-|------|----------|-----------|-----------|
-| **UserRole** | `USER`, `ADMIN` | VARCHAR + CHECK | PostgreSQL ENUM |
-| **CategoryType** | `SYSTEM`, `CUSTOM`, `LEGACY` | VARCHAR + CHECK | PostgreSQL ENUM |
-| **Currency** | `RUB`, `USD`, `EUR` | VARCHAR + CHECK | PostgreSQL ENUM |
-| **NotificationType** | `UPCOMING_PAYMENT`, `PAYMENT_SUCCESSFUL` | VARCHAR + CHECK | PostgreSQL ENUM |
+| Enum | Значения | Реализация |
+|------|----------|------------|
+| **UserRole** | `USER`, `ADMIN` | VARCHAR + CHECK |
+| **CategoryType** | `SYSTEM`, `CUSTOM`, `LEGACY` | VARCHAR + CHECK |
+| **Currency** | `RUB`, `USD`, `EUR` | VARCHAR + CHECK |
+| **NotificationType** | `UPCOMING_PAYMENT`, `PAYMENT_SUCCESSFUL` | VARCHAR + CHECK |
 
-  **Реализация:**
-- **JAVA MODE** — VARCHAR + CHECK constraints (для совместимости с JPA/Hibernate)
-- **FULL MODE** — PostgreSQL ENUM типы (для строгой типизации на уровне БД)
+**Реализация:** VARCHAR + CHECK constraints (для совместимости с JPA/Hibernate)
 
 ### Отношения
 
@@ -122,34 +96,15 @@ CREATE TABLE users (
 );
 ```
 
-### Триггеры (только в FULL MODE)
-
-FULL MODE реализует полную бизнес-логику на уровне БД, идентичную Java-сервисам:
-
-| Триггер | Событие | Описание |
-|---------|---------|----------|
-| `create_notifications_for_subscription()` | INSERT subscriptions | Создает 2 уведомления: PAYMENT_SUCCESSFUL (is_sent=true) и UPCOMING_PAYMENT (is_sent=false) |
-| `handle_subscription_changes()` | UPDATE subscriptions | **Деактивация**: удаляет is_sent=false UPCOMING_PAYMENT<br>**Активация**: создает оба уведомления<br>**Изменения**: обновляет message и даты |
-| `handle_payment_changes()` | UPDATE payments | Обновляет уведомления при изменении cost/currency/next_billing_date |
-| CASCADE DELETE | DELETE subscriptions | Автоматически удаляет все связанные уведомления |
-
-**В JAVA MODE триггеров нет** - вся логика в `SubscriptionService.java`.
-
 ### Аналитические витрины
+
+БД содержит 3 аналитические витрины, используемые в `AnalyticsService.java`:
 
 | View                          | Описание                                                    |
 |-------------------------------|-------------------------------------------------------------|
 | `user_subscriptions_summary`  | Сводка подписок с нормализацией к месячным тратам         |
 | `upcoming_payments`           | Предстоящие платежи с категоризацией срочности             |
-| `category_statistics`         | Глобальная статистика по категориям (все пользователи)     |
 | `user_category_statistics`    | Персонализированная статистика категорий по пользователям  |
-| `user_activity`               | Активность пользователей                                    |
-| `top_subscriptions`           | Топ популярных подписок                                     |
-| `notification_analysis`       | Анализ уведомлений                                          |
-| `urgent_payments`             | Срочные платежи (ближайшие 7 дней)                         |
-| `spending_trends`             | Прогноз расходов на 6 месяцев                              |
-| `expensive_subscriptions`     | Самые дорогие подписки с нормализацией к месячной стоимости |
-| `monthly_statistics`          | Месячная статистика (MATERIALIZED VIEW)                     |
 
 **Ключевая особенность:**
 Витрина `user_subscriptions_summary` автоматически нормализует стоимость подписок к месячным тратам:
@@ -169,16 +124,6 @@ GUI и REST API получают данные напрямую из этой в�
 - **BRIN индексы** для временных данных (created_at)
 - **Composite индексы** для частых комбинаций фильтров
 
-### Row Level Security (RLS)
-
-RLS включен для таблиц `subscriptions` и `notifications`:
-
-```sql
--- Пример использования
-SELECT set_current_user_id('uuid-пользователя');
-SELECT * FROM subscriptions; -- Вернет только подписки текущего пользователя
-```
-
 ## Роли БД
 
 ### 1. subscription_app (для Spring Boot)
@@ -192,12 +137,12 @@ SELECT * FROM subscriptions; -- Вернет только подписки те�
 
 ## Тестовые данные
 
-После выполнения `test_data.sql` будет создано:
+Тестовые данные автоматически создаются при первом запуске Spring Boot приложения через `DataInitializer.java`:
 
-- 5 пользователей (1 ADMIN, 4 USER)
-- 6 категорий (4 SYSTEM, 2 CUSTOM)
-- 9 подписок в разных валютах (RUB, USD, EUR)
-- Автоматически созданные уведомления через триггеры
+- 1 пользователь ADMIN (логин: `admin`, пароль: `admin123`)
+- 4 системные категории (SYSTEM)
+- Несколько тестовых подписок с разными валютами (RUB, USD, EUR)
+- Автоматически созданные уведомления через `SubscriptionService`
 
 ## Настройка Spring Boot
 

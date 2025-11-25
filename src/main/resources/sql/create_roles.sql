@@ -9,7 +9,7 @@
 CREATE ROLE subscription_app WITH LOGIN PASSWORD 'Sgj$_tKW0B2N';
 
 COMMENT ON ROLE subscription_app IS
-'Роль для Spring Boot приложения с полным доступом к операционным таблицам и RLS политиками';
+'Роль для Spring Boot приложения с полным доступом к операционным таблицам';
 
 GRANT CONNECT ON DATABASE subscription_monitor TO subscription_app;
 GRANT USAGE ON SCHEMA public TO subscription_app;
