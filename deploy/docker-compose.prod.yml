@@ -1,0 +1,64 @@
+# Production stack: postgres + blue/green app + caddy
+# Не запускать голый "docker compose up -d" — поднимет оба цвета сразу.
+# Первичный запуск: docker compose -f docker-compose.prod.yml up -d postgres web app-blue
+# Дальнейшие выкатки: ./deploy.sh <тег>
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app-blue: &app
+    image: ghcr.io/antgalanin/subscription-monitor-app:${APP_TAG}
+    environment: &app-env
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      APP_INIT_ADMIN_PASSWORD: ${APP_INIT_ADMIN_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 60s
+
+  app-green:
+    <<: *app
+
+  web:
+    image: ghcr.io/antgalanin/subscription-monitor-web:${APP_TAG}
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "443:443"
+    volumes:
+      - ./caddy:/etc/caddy:ro
+      - ./certs:/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:2019/config/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

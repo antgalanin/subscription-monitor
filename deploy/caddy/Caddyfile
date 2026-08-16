@@ -1,0 +1,22 @@
+# Прод-конфигурация: TLS-сертификат Cloudflare Origin CA,
+# входящие соединения только от Cloudflare (Authenticated Origin Pulls)
+https://{$DOMAIN} {
+	tls /certs/origin.pem /certs/origin-key.pem {
+		client_auth {
+			mode require_and_verify
+			trust_pool file /certs/authenticated_origin_pull_ca.pem
+		}
+	}
+
+	encode gzip
+
+	handle /api/* {
+		import /etc/caddy/upstream.caddy
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

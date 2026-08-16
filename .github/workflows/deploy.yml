@@ -1,0 +1,82 @@
+name: Release and deploy
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  tests:
+    name: Tests
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Push versioned images
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository }}-app:${{ github.ref_name }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+      - name: Build and push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository }}-web:${{ github.ref_name }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+  deploy:
+    name: Deploy to VPS
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+      - name: Sync deploy files
+        run: |
+          rsync -az --exclude upstream.caddy deploy/ \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/subscription-monitor/deploy/"
+      - name: Run blue-green deploy
+        run: |
+          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "bash ~/subscription-monitor/deploy/deploy.sh ${{ github.ref_name }}"
+      - name: Smoke test
+        id: smoke
+        run: |
+          sleep 5
+          code_root=$(curl -s -o /dev/null -w '%{http_code}' "https://${{ vars.DOMAIN }}/")
+          code_api=$(curl -s -o /dev/null -w '%{http_code}' "https://${{ vars.DOMAIN }}/api/auth/me")
+          echo "GET / -> $code_root, GET /api/auth/me -> $code_api"
+          test "$code_root" = "200" && test "$code_api" = "401"
+      - name: Finish deploy
+        run: |
+          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "bash ~/subscription-monitor/deploy/finish.sh"
+      - name: Rollback on failed smoke test
+        if: failure() && steps.smoke.outcome == 'failure'
+        run: |
+          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "bash ~/subscription-monitor/deploy/rollback.sh"
