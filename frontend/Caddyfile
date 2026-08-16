@@ -1,0 +1,14 @@
+# Local and default configuration, prod mounts its own Caddyfile
+{$CADDY_SITE_ADDRESS::80} {
+	encode gzip
+
+	handle /api/* {
+		import /etc/caddy/upstream.caddy
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
