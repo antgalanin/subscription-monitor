@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 @RequestMapping(value = "/api/subscriptions", produces = MediaType.APPLICATION_JSON_VALUE)
 @RequiredArgsConstructor
 @Tag(name = "Subscriptions", description = "API для управления подписками")
-@SecurityRequirement(name = "basicAuth")
+@SecurityRequirement(name = "cookieAuth")
 public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;

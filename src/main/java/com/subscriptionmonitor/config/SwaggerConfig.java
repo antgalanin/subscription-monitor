@@ -1,6 +1,7 @@
 package com.subscriptionmonitor.config;
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.info.Contact;
 import io.swagger.v3.oas.annotations.info.Info;
@@ -35,10 +36,12 @@ import java.util.List;
     }
 )
 @SecurityScheme(
-    name = "basicAuth",
-    type = SecuritySchemeType.HTTP,
-    scheme = "basic",
-    description = "HTTP Basic Authentication. Используйте username и password зарегистрированного пользователя."
+    name = "cookieAuth",
+    type = SecuritySchemeType.APIKEY,
+    in = SecuritySchemeIn.COOKIE,
+    paramName = "JSESSIONID",
+    description = "Сессионная аутентификация. Выполните вход через POST /api/auth/login — "
+        + "браузер сохранит сессионную куку и будет отправлять её автоматически."
 )
 public class SwaggerConfig {
 

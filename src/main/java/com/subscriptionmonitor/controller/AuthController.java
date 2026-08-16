@@ -1,6 +1,7 @@
 package com.subscriptionmonitor.controller;
 
 import com.subscriptionmonitor.dto.ChangePasswordRequest;
+import com.subscriptionmonitor.dto.LoginRequest;
 import com.subscriptionmonitor.dto.RegisterRequest;
 import com.subscriptionmonitor.dto.UpdateEmailRequest;
 import com.subscriptionmonitor.dto.UserResponse;
@@ -18,6 +19,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +28,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -40,6 +49,46 @@ public class AuthController {
     private final UserService userService;
     private final SecurityService securityService;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final SecurityContextRepository securityContextRepository;
+
+    @Operation(
+            summary = "Вход в систему",
+            description = "Аутентификация по имени пользователя и паролю. При успехе создаётся серверная сессия, "
+                    + "браузеру выставляется сессионная кука. Доступ: публичный endpoint."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Login successful",
+            content = @Content(schema = @Schema(implementation = UserResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Validation failed",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":400,\"error\":\"Bad Request\",\"message\":\"Username is required\",\"code\":\"VALIDATION_ERROR\",\"timestamp\":\"2026-08-16T18:30:00\",\"path\":\"/api/auth/login\"}"))),
+        @ApiResponse(responseCode = "401", description = "Invalid credentials",
+            content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
+                examples = @ExampleObject(value = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Invalid username or password\",\"code\":\"INVALID_CREDENTIALS\",\"timestamp\":\"2026-08-16T18:30:00\",\"path\":\"/api/auth/login\"}")))
+    })
+    @PostMapping("/login")
+    public ResponseEntity<UserResponse> login(@Valid @RequestBody LoginRequest loginRequest,
+                                              HttpServletRequest request,
+                                              HttpServletResponse response) throws UserNotFoundException {
+        log.info("Login request: {}", loginRequest.getUsername());
+
+        Authentication authentication = authenticationManager.authenticate(
+                UsernamePasswordAuthenticationToken.unauthenticated(
+                        loginRequest.getUsername(), loginRequest.getPassword()));
+
+        if (request.getSession(false) != null) {
+            request.changeSessionId();
+        }
+
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
+        securityContextRepository.saveContext(context, request, response);
+
+        User user = userService.findByUsername(loginRequest.getUsername());
+        return ResponseEntity.ok(toUserResponse(user));
+    }
 
     @Operation(
             summary = "Получить информацию о текущем пользователе",
@@ -62,7 +111,7 @@ public class AuthController {
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-25T18:30:00\",\"path\":\"/api/auth/me\"}")))
     })
-    @SecurityRequirement(name = "basicAuth")
+    @SecurityRequirement(name = "cookieAuth")
     @GetMapping("/me")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<UserResponse> getCurrentUser() throws UserNotFoundException {
@@ -128,7 +177,7 @@ public class AuthController {
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/auth/{userId}/email\"}")))
     })
-    @SecurityRequirement(name = "basicAuth")
+    @SecurityRequirement(name = "cookieAuth")
     @PutMapping("/{userId}/email")
     @PreAuthorize("@securityService.isOwner(#userId)")
     public ResponseEntity<UserResponse> updateEmail(
@@ -167,7 +216,7 @@ public class AuthController {
             content = @Content(schema = @Schema(implementation = com.subscriptionmonitor.dto.ErrorResponse.class),
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-30T18:30:00\",\"path\":\"/api/auth/{userId}/change-password\"}")))
     })
-    @SecurityRequirement(name = "basicAuth")
+    @SecurityRequirement(name = "cookieAuth")
     @PostMapping("/{userId}/change-password")
     @PreAuthorize("@securityService.isOwner(#userId)")
     public ResponseEntity<Void> changePassword(

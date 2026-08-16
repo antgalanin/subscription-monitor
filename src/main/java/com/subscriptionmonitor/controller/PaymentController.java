@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 @RequestMapping(value = "/api/payments", produces = MediaType.APPLICATION_JSON_VALUE)
 @RequiredArgsConstructor
 @Tag(name = "Payments", description = "API для управления платежной информацией")
-@SecurityRequirement(name = "basicAuth")
+@SecurityRequirement(name = "cookieAuth")
 public class PaymentController {
 
     private final PaymentService paymentService;

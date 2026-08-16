@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
 @RequestMapping(value = "/api/categories", produces = MediaType.APPLICATION_JSON_VALUE)
 @RequiredArgsConstructor
 @Tag(name = "Categories", description = "API для управления категориями подписок")
-@SecurityRequirement(name = "basicAuth")
+@SecurityRequirement(name = "cookieAuth")
 public class CategoryController {
 
     private final CategoryService categoryService;

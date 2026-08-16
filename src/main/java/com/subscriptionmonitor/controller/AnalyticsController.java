@@ -33,7 +33,7 @@ import java.util.UUID;
 @RequestMapping(value = "/api/analytics", produces = MediaType.APPLICATION_JSON_VALUE)
 @RequiredArgsConstructor
 @Tag(name = "Analytics", description = "API для получения аналитических данных и статистики")
-@SecurityRequirement(name = "basicAuth")
+@SecurityRequirement(name = "cookieAuth")
 public class AnalyticsController {
 
     private final AnalyticsService analyticsService;

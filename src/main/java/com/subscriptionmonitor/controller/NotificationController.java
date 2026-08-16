@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 @RequestMapping(value = "/api/notifications", produces = MediaType.APPLICATION_JSON_VALUE)
 @RequiredArgsConstructor
 @Tag(name = "Notifications", description = "API для управления уведомлениями о предстоящих списаниях. Автоматически создаются при добавлении подписки.")
-@SecurityRequirement(name = "basicAuth")
+@SecurityRequirement(name = "cookieAuth")
 public class NotificationController {
 
     private final NotificationService notificationService;

@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 @RequestMapping(value = "/api/users", produces = MediaType.APPLICATION_JSON_VALUE)
 @RequiredArgsConstructor
 @Tag(name = "Users", description = "API для управления пользователями системы")
-@SecurityRequirement(name = "basicAuth")
+@SecurityRequirement(name = "cookieAuth")
 public class UserController {
 
     private final UserService userService;
