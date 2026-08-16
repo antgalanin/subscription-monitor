@@ -1,6 +1,10 @@
 -- =============================================================================
--- Создание таблиц (VARCHAR + CHECK)
+-- Базовая схема: таблицы и ограничения целостности
 -- =============================================================================
+
+CREATE SCHEMA IF NOT EXISTS analytics;
+
+COMMENT ON SCHEMA analytics IS 'Схема для аналитических витрин данных';
 
 -- =============================================================================
 -- Таблица users
@@ -131,3 +135,14 @@ COMMENT ON COLUMN notifications.notification_type IS 'Тип: UPCOMING_PAYMENT, 
 COMMENT ON COLUMN notifications.is_sent IS 'Флаг отправки уведомления';
 COMMENT ON COLUMN notifications.message IS 'Текст уведомления';
 COMMENT ON COLUMN notifications.created_at IS 'Дата создания уведомления';
+
+-- =============================================================================
+-- Ограничение уникальности активных подписок
+-- =============================================================================
+
+CREATE UNIQUE INDEX idx_subscriptions_unique_active
+    ON subscriptions(user_id, name)
+    WHERE is_active = TRUE;
+
+COMMENT ON INDEX idx_subscriptions_unique_active IS
+'Partial unique индекс: пользователь не может иметь две активные подписки с одним именем';
