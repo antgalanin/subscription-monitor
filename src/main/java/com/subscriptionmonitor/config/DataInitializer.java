@@ -13,6 +13,7 @@ import com.subscriptionmonitor.service.CategoryService;
 import com.subscriptionmonitor.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -26,6 +27,9 @@ public class DataInitializer implements CommandLineRunner {
     private final CategoryService categoryService;
     private final CategoryRepository categoryRepository;
 
+    @Value("${app.init.admin-password:}")
+    private String adminPassword;
+
     @Override
     public void run(String... args) {
         log.info("Starting data initialization...");
@@ -38,20 +42,23 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initializeUsers() {
         try {
-            if (userRepository.findByUsername("admin").isEmpty()) {
-                User admin = new User(
-                        "admin",
-                        "admin@subscriptionmonitor.com",
-                        "admin123",
-                        UserRole.ADMIN,
-                        3
-                );
-                userService.create(admin, null);
-                log.info("Admin user created successfully");
-            } else {
+            if (userRepository.findByUsername("admin").isPresent()) {
                 log.info("Admin user already exists, skipping creation");
+                return;
             }
-
+            if (adminPassword == null || adminPassword.isBlank()) {
+                log.warn("Admin user not created: app.init.admin-password is not set");
+                return;
+            }
+            User admin = new User(
+                    "admin",
+                    "admin@subscriptionmonitor.com",
+                    adminPassword,
+                    UserRole.ADMIN,
+                    3
+            );
+            userService.create(admin, null);
+            log.info("Admin user created successfully");
         } catch (UserValidationException e) {
             log.error("Error creating admin user: {}", e.getMessage());
         }
