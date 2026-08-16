@@ -1,0 +1,10 @@
+target/
+logs/
+docs/
+frontend/
+deploy/
+.git/
+.github/
+.idea/
+.gitignore
+*.md
