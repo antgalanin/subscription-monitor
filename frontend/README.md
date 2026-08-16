@@ -1,5 +1,12 @@
-# Vue 3 + Vite
+# Subscription Monitor — веб-клиент
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Одностраничное приложение на Vue 3 (Composition API) с Element Plus. Общается с сервером только через REST API `/api/*`.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+```bash
+npm install
+npm run dev        # dev server на :5173, прокси /api -> localhost:8080
+npm test           # Vitest
+npm run build      # прод-сборка в dist/
+```
+
+В контейнере статика раздаётся Caddy (см. `Dockerfile` и `Caddyfile`), он же проксирует `/api` на бэкенд.

@@ -1,6 +1,8 @@
 # Subscription Monitor
 
-Система мониторинга персональных подписок с автоматическими уведомлениями и обработкой платежей.
+Веб-приложение для мониторинга персональных подписок с автоматическими уведомлениями, обработкой платежей и полностью автоматизированным циклом сборки, тестирования и развёртывания.
+
+Первая версия проекта (курсовая работа) — Spring Boot REST API с десктопным Swing-клиентом — зафиксирована тегом [`coursework-2025`](../../tree/coursework-2025). Текущая версия заменяет десктопный клиент на веб-интерфейс и добавляет контейнеризацию с CI/CD.
 
 ## Оглавление
 
@@ -11,14 +13,16 @@
 - [Обработка исключений](#обработка-исключений)
 - [Безопасность и роли пользователей](#безопасность-и-роли-пользователей)
 - [Автоматизация и планировщики](#автоматизация-и-планировщики)
-- [Графический интерфейс (GUI)](#графический-интерфейс-gui)
+- [Веб-интерфейс](#веб-интерфейс)
+- [Тестирование](#тестирование)
+- [CI/CD и развёртывание](#cicd-и-развёртывание)
 - [Логирование](#логирование)
 - [Быстрый старт](#быстрый-старт)
 - [Структура проекта](#структура-проекта)
 
 ## Описание проекта
 
-**Subscription Monitor** — это клиент-серверное приложение для управления персональными подписками с автоматическим мониторингом предстоящих платежей.
+**Subscription Monitor** — приложение для управления персональными подписками с автоматическим мониторингом предстоящих платежей.
 
 ### Ключевые возможности
 
@@ -28,22 +32,52 @@
 - Аналитика расходов с нормализацией к месячным тратам
 - Автоматическая обработка просроченных платежей
 - REST API с документацией Swagger
-- Графический интерфейс на Swing с современным дизайном
+- Веб-интерфейс на Vue 3
 - Ролевая модель доступа (USER, ADMIN)
-- Интеграция с PostgreSQL
+- Автоматические сборка, тестирование и выкатка на сервер по тегу версии
 
 ### Стек технологий
 
-- **Backend**: Java 24, Spring Boot 3.4.2, Spring Security, Spring Data JPA
+- **Backend**: Java 24, Spring Boot 3.4.2, Spring Security, Spring Data JPA, Flyway
 - **База данных**: PostgreSQL 17
-- **Frontend**: Java Swing, FlatLaf
+- **Frontend**: Vue 3, Vite, Vue Router, Pinia, Element Plus, Axios
 - **REST API**: Spring Web, SpringDoc OpenAPI (Swagger UI)
-- **Валидация**: Jakarta Validation
-- **Логирование**: Logback
-- **Сборка**: Maven
-- **Безопасность**: BCrypt password encoding, HTTP Basic Authentication
+- **Тестирование**: JUnit 5, Mockito, Testcontainers, Vitest
+- **Инфраструктура**: Docker, Docker Compose, Caddy, GitHub Actions, GHCR, Cloudflare
+- **Безопасность**: BCrypt, сессионная аутентификация, CSRF-защита
 
 ## Архитектура
+
+### Архитектура развёртывания
+
+```mermaid
+flowchart TB
+    U["Браузер"] -->|HTTPS| CF["Cloudflare<br/>Universal SSL · CDN · WAF"]
+    CF -->|"HTTPS, Origin CA<br/>Full (strict) + mTLS"| CADDY
+
+    subgraph VPS["VPS · Docker Compose"]
+        CADDY["<b>web</b> (Caddy)<br/>TLS · статика Vue · reverse proxy"]
+        BLUE["<b>app-blue</b><br/>Spring Boot"]
+        GREEN["<b>app-green</b><br/>Spring Boot"]
+        PG[("<b>postgres</b><br/>volume")]
+
+        CADDY -->|"активный цвет"| BLUE
+        CADDY -.->|"резервный"| GREEN
+        BLUE --> PG
+        GREEN --> PG
+    end
+
+    GHCR["GHCR<br/>образы app и web"] -.->|docker pull| VPS
+```
+
+Проект собирается в два Docker-образа:
+
+| Образ | Содержимое | Базовый образ |
+|-------|------------|---------------|
+| `subscription-monitor-app` | Spring Boot приложение, разложенное на слои | `eclipse-temurin:24-jre` |
+| `subscription-monitor-web` | Caddy + собранная статика Vue | `caddy:2-alpine` |
+
+Caddy раздаёт статику и проксирует `/api/*` на активный экземпляр приложения. SPA и API живут на одном домене, поэтому CORS не нужен.
 
 ### Модели данных
 
@@ -120,13 +154,20 @@
 
 ## База данных
 
-Проект использует PostgreSQL для хранения данных:
+Схемой базы данных управляет **Flyway**: версионированные миграции лежат в `src/main/resources/db/migration/` и применяются автоматически при старте приложения. Hibernate работает в режиме `validate` — не меняет схему, а сверяет с ней сущности.
 
-- Вся бизнес-логика реализована в Java сервисах
-- Enums реализованы через VARCHAR + CHECK constraints (для совместимости с JPA/Hibernate)
-- Тестовые данные создаются автоматически через `DataInitializer.java` при запуске приложения
+| Миграция | Содержимое |
+|----------|------------|
+| `V1__create_tables.sql` | Таблицы, ограничения целостности, partial unique индекс активных подписок |
+| `V2__create_indexes.sql` | 28 индексов (B-tree, partial, composite, BRIN) |
+| `V3__create_views.sql` | 4 аналитические витрины в схеме `analytics` |
 
-Подробная документация по базе данных доступна в [README.md](src/main/resources/sql/README.md)
+Особенности:
+
+- Пустая база превращается в актуальную схему одним стартом приложения — это основа автоматического развёртывания.
+- Аналитические витрины (`user_subscriptions_summary`, `upcoming_payments`, `category_statistics`, `user_category_statistics`) используются `AnalyticsService` напрямую через SQL; витрина расходов нормализует стоимость подписок к месячным тратам.
+- Тестовые данные создаются через `DataInitializer.java`: системные категории — всегда, административный аккаунт — только если задан пароль (`app.init.admin-password`, в prod — переменная `APP_INIT_ADMIN_PASSWORD`).
+- Параметры подключения задаются переменными окружения `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`; значения по умолчанию подходят только для локальной разработки.
 
 ## REST API
 
@@ -134,7 +175,7 @@ REST API разделен на 7 групп контроллеров:
 
 | Контроллер | Назначение | Основные операции                                                                                                                                                      |
 |------------|------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `AuthController` | Аутентификация и регистрация | Регистрация новых пользователей, получение данных текущего пользователя, смена email, изменение пароля                                                                 |
+| `AuthController` | Аутентификация и регистрация | Вход и выход (сессия), регистрация, получение данных текущего пользователя, смена email, изменение пароля                                                              |
 | `UserController` | Управление пользователями | Создание, просмотр, обновление, удаление пользователей <br/>Фильтрация по ролям                                                                                        |
 | `CategoryController` | Управление категориями | Создание, просмотр, обновление, удаление категорий <br/> Фильтрация по типам <br/> Контроль доступа для пользовательских категорий                                     |
 | `SubscriptionController` | Управление подписками | Создание, просмотр, обновление, удаление подписок <br/> Фильтрация по пользователям, категориям, активности <br/> Атомарное обновление с платежами                     |
@@ -151,17 +192,9 @@ REST API документирован с помощью **SpringDoc OpenAPI 3** 
 http://localhost:8080/swagger-ui.html
 ```
 
-**Возможности Swagger UI:**
-- Интерактивная документация всех 7 контроллеров
-- Примеры JSON для запросов и ответов
-- Описание всех параметров, заголовков и тел запросов
-- Документация кодов ответов
-- Тестирование эндпоинтов прямо из браузера
-- HTTP Basic Authentication через кнопку "Authorize"
+Аутентификация в Swagger — сессионная: выполните `POST /api/auth/login`, браузер сохранит сессионную куку автоматически.
 
 ## Обработка исключений
-
-### Backend исключения
 
 Иерархия исключений построена на трех базовых классах:
 
@@ -189,10 +222,10 @@ http://localhost:8080/swagger-ui.html
 |-----|-----|-------------------|
 | 200 | OK | Успешное выполнение GET/PUT запроса |
 | 201 | Created | Успешное создание ресурса (POST) |
-| 204 | No Content | Успешное удаление ресурса (DELETE) |
+| 204 | No Content | Успешное удаление ресурса (DELETE), выход из системы |
 | 400 | Bad Request | Ошибка валидации данных (ValidationException) |
-| 401 | Unauthorized | Требуется аутентификация |
-| 403 | Forbidden | Нет прав доступа (например, USER пытается удалить SYSTEM категорию) |
+| 401 | Unauthorized | Требуется аутентификация или неверные учётные данные |
+| 403 | Forbidden | Нет прав доступа или отсутствует CSRF-токен |
 | 404 | Not Found | Ресурс не найден (EntityNotFoundException) |
 | 410 | Gone | Ресурс устарел (LegacyCategoryException) |
 | 500 | Internal Server Error | Внутренняя ошибка сервера |
@@ -205,25 +238,26 @@ http://localhost:8080/swagger-ui.html
   "error": "Not Found",
   "message": "User with id 123... not found",
   "code": "USER_NOT_FOUND",
-  "timestamp": "2025-01-05T12:30:00",
+  "timestamp": "2026-01-05T12:30:00",
   "path": "/api/users/123..."
 }
 ```
 
-### GUI исключения
-
-GUI использует `ApiException` для обработки ошибок REST API:
-
-| Метод | Возвращает | Назначение |
-|-------|------------|------------|
-| `hasErrorCode(String code)` | `boolean` | Проверка конкретного кода ошибки |
-| `isClientError()` | `boolean` | Проверка ошибки 4xx |
-| `isServerError()` | `boolean` | Проверка ошибки 5xx |
-| `getUserFriendlyMessage()` | `String` | Получение понятного сообщения для пользователя |
+По полю `code` веб-клиент принимает решения, поэтому коды стабильны и не меняются произвольно.
 
 ## Безопасность и роли пользователей
 
-Приложение использует Spring Security с HTTP Basic Authentication и BCrypt для хеширования паролей.
+Приложение использует Spring Security с сессионной аутентификацией и BCrypt для хеширования паролей.
+
+### Сессионная аутентификация
+
+- `POST /api/auth/login` проверяет учётные данные и создаёт серверную сессию; браузеру выставляется кука `JSESSIONID` (`HttpOnly`, `SameSite=Lax`, в prod дополнительно `Secure`).
+- `POST /api/auth/logout` аннулирует сессию и удаляет куку.
+- Пароль в браузере не хранится — в отличие от HTTP Basic, где он отправлялся с каждым запросом.
+
+### CSRF-защита
+
+Токен выдаётся в куке `XSRF-TOKEN`, доступной JavaScript; клиент возвращает его заголовком `X-XSRF-TOKEN` при каждом изменяющем запросе (Axios делает это автоматически). POST/PUT/DELETE без корректного токена отклоняются с кодом 403.
 
 ### Роль USER
 
@@ -231,18 +265,15 @@ GUI использует `ApiException` для обработки ошибок R
 - Просмотр и управление своими подписками
 - Создание пользовательских категорий (CUSTOM)
 - Просмотр всех системных категорий (SYSTEM)
-- Редактирование только своих CUSTOM категорий
-- Удаление только своих CUSTOM категорий
+- Редактирование и удаление только своих CUSTOM категорий
 - Просмотр своих уведомлений
 - Просмотр своей статистики
 - Обновление своего email и пароля
 
 **Ограничения:**
-- Не может изменять/удалять SYSTEM категории
-- Не может изменять/удалять LEGACY категории
+- Не может изменять/удалять SYSTEM и LEGACY категории
 - Не видит других пользователей
-- Не может управлять ролями
-- Не может удалять пользователей
+- Не может управлять ролями и удалять пользователей
 
 ### Роль ADMIN
 
@@ -252,9 +283,7 @@ GUI использует `ApiException` для обработки ошибок R
 - Удаление пользователей
 - Управление ролями пользователей
 - Создание и редактирование SYSTEM категорий
-- Редактирование и удаление любых CUSTOM категорий (всех пользователей)
-- Удаление SYSTEM категорий
-- Доступ к расширенной информации в GUI (панель "Пользователи")
+- Редактирование и удаление любых CUSTOM категорий
 
 **Ограничения:**
 - Не может удалять LEGACY категории (никто не может)
@@ -269,174 +298,116 @@ GUI использует `ApiException` для обработки ошибок R
 | **NotificationScheduler** | Каждые 60 секунд | Отмечает неотправленные уведомления как отправленные, если дата уведомления уже наступила |
 | **PaymentProcessor** | При старте приложения + ежедневно в 00:01 | Обрабатывает просроченные платежи, создает уведомления, обновляет даты следующих списаний |
 
-### NotificationScheduler
+## Веб-интерфейс
 
-**Метод:** `markPendingNotificationsAsSent()`
+Одностраничное приложение на **Vue 3** (Composition API) с библиотекой компонентов **Element Plus**. Клиент общается с сервером только через REST API — тем же, что использовал десктопный Swing-клиент первой версии, поэтому серверная логика при смене интерфейса не менялась.
 
-**Аннотация:** `@Scheduled(fixedRate = 60000)`
+| Экран | Доступ | Назначение |
+|-------|--------|------------|
+| **Вход / Регистрация** | Все | Аутентификация и создание аккаунта |
+| **Подписки** | USER, ADMIN | Таблица подписок с созданием, редактированием и удалением; стоимость и дата списания из связанного платежа |
+| **Категории** | USER, ADMIN | Системные и пользовательские категории, управление своими CUSTOM |
+| **Уведомления** | USER, ADMIN | Полученные уведомления о платежах |
+| **Статистика** | USER, ADMIN | Карточки расходов по валютам, предстоящие платежи со срочностью, разбивка по категориям |
+| **Профиль** | USER, ADMIN | Данные аккаунта, смена email и пароля |
+| **Пользователи** | ADMIN | Список пользователей, редактирование ролей, удаление |
 
-**Логика:**
-1. Получает все неотправленные уведомления с наступившей датой
-2. Отмечает их как отправленные (`isSent = true`)
-3. Логирует количество обработанных уведомлений
+Технические детали:
 
-### PaymentProcessor
+- **Vue Router** с навигационным guard'ом: неаутентифицированные попадают на `/login`, экран «Пользователи» доступен только ADMIN.
+- **Pinia** хранит текущего пользователя; состояние восстанавливается запросом `GET /api/auth/me`.
+- **Axios** с общим перехватчиком: ответ 401 возвращает на экран входа, CSRF-токен подставляется автоматически.
+- В режиме разработки Vite проксирует `/api` на `localhost:8080`, в проде статику и проксирование выполняет Caddy — код клиента одинаков в обоих случаях.
 
-**Метод:** `processOverduePayments()`
+## Тестирование
 
-**Аннотации:**
-- `@EventListener(ApplicationReadyEvent.class)` — при старте приложения
-- `@Scheduled(cron = "0 1 0 * * *")` — ежедневно в 00:01
+| Уровень | Инструменты | Что проверяет |
+|---------|-------------|---------------|
+| Модульные (57) | JUnit 5, Mockito | Бизнес-логику сервисного слоя на заглушках |
+| Интеграционные (16) | Testcontainers, MockMvc | Реальный PostgreSQL в контейнере: миграции Flyway на пустой базе, сессионную аутентификацию и CSRF, разграничение доступа, каскадные удаления на уровнях JPA и SQL, SQL-математику аналитических витрин |
+| Фронтенд (25) | Vitest, Vue Test Utils | Утилиты форматирования, стор аутентификации, компонент входа |
 
-**Логика:**
-1. Находит все активные подписки с просроченными платежами (`nextBillingDate < today`)
-2. Рассчитывает количество пропущенных периодов оплаты
-3. Создаёт уведомления `PAYMENT_SUCCESSFUL` за каждый пропущенный период (с проверкой на дубликаты)
-4. Обновляет `nextBillingDate` на актуальную дату
-5. Логирует количество обработанных платежей и созданных уведомлений
+```bash
+mvn verify                                    # модульные + интеграционные (нужен Docker)
+mvn test -Dtest=UserServiceTest               # один класс
+cd frontend && npm test                       # тесты фронтенда
+```
 
-## Графический интерфейс (GUI)
+## CI/CD и развёртывание
 
-GUI построен на Java Swing с использованием библиотеки **FlatLaf** для современного внешнего вида.
+### Конвейер
 
-### Панели приложения
+```mermaid
+flowchart LR
+    P["push в любую ветку"] --> T["<b>тесты</b><br/>mvn verify + Testcontainers<br/>npm test + build"]
+    T --> M{"ветка main?"}
+    M -->|нет| STOP["стоп: только проверка"]
+    M -->|да| B["<b>сборка</b><br/>два образа → GHCR<br/>тег = sha"]
+    TAG["push тега v*"] --> B2["<b>релиз</b><br/>образы с тегом версии"]
+    B2 --> D["<b>деплой</b><br/>SSH на VPS"]
+    D --> BG["поднять неактивный цвет<br/>Flyway накатывает миграции<br/>дождаться healthcheck"]
+    BG --> SW["переключить Caddy<br/>без разрыва соединений"]
+    SW --> SMOKE["smoke-тест по домену"]
+    SMOKE -->|успех| FIN["погасить старый цвет"]
+    SMOKE -->|провал| RB["откат: вернуть Caddy назад"]
+```
 
-| Панель | Доступ | Назначение |
-|--------|--------|------------|
-| **Подписки** | USER, ADMIN | Просмотр, создание, редактирование, удаление подписок. Фильтрация по категориям и активности |
-| **Статистика** | USER, ADMIN | Общая статистика (расходы, количество подписок), топ категорий, предстоящие платежи |
-| **Категории** | USER, ADMIN | Управление категориями, создание CUSTOM категорий, просмотр SYSTEM категорий |
-| **Уведомления** | USER, ADMIN | Список всех уведомлений с фильтрацией по типу и статусу отправки |
-| **Профиль** | USER, ADMIN | Информация о пользователе, изменение email и пароля |
-| **Пользователи** | ADMIN | Управление пользователями (просмотр, удаление, изменение ролей) |
+| Workflow | Триггер | Что делает |
+|----------|---------|------------|
+| [`ci.yml`](.github/workflows/ci.yml) | push в любую ветку, PR | Тесты бэкенда и фронтенда; на `main` дополнительно собирает и публикует оба образа в GHCR с тегом коммита |
+| [`deploy.yml`](.github/workflows/deploy.yml) | push тега `v*` | Тесты → сборка образов с тегом версии → blue-green выкатка на VPS по SSH → smoke-тест → автооткат при провале |
 
-### Диалоговые окна
+Выкатка новой версии — одна команда:
 
-| Диалог | Доступ | Назначение |
-|--------|--------|------------|
-| `LoginDialog` | Все | Аутентификация (с кнопкой регистрации) |
-| `RegistrationDialog` | Все | Регистрация нового пользователя |
-| `SubscriptionDialog` | USER, ADMIN | Создание/редактирование подписки |
-| `CategoryDialog` | USER, ADMIN | Создание/редактирование категории |
-| `UserDialog` | ADMIN | Редактирование пользователя |
-| `AboutDialog` | USER, ADMIN | Информация о приложении |
+```bash
+git tag v1.2.3 && git push --tags
+```
 
-### Отличия для USER и ADMIN
+Обновление проходит без прерывания обслуживания: новый экземпляр приложения поднимается рядом со старым, применяет миграции, проходит healthcheck, после чего Caddy переключает трафик без разрыва соединений.
 
-**USER:**
-- Видит 5 вкладок (без панели "Пользователи")
-- В панели "Категории" может создавать только CUSTOM категории
-- Не видит информацию о других пользователях
+Docker-образ бэкенда собирается многостадийно: Maven и исходники остаются в стадии сборки, в финальный образ попадают только JRE и приложение, разложенное на слои (зависимости отдельно от кода — правка кода не пересобирает слой зависимостей).
 
-**ADMIN:**
-- Видит 6 вкладок (включая "Пользователи")
-- Может удалять пользователей и управлять их ролями
-- В панели "Пользователи" отображается список всех пользователей с возможностью удаления и редактирования
-- Все остальные панели работают идентично USER (видит только свои подписки)
+Подробности серверной части — подготовка VPS, Cloudflare, сертификаты, скрипты blue-green — в [`deploy/README.md`](deploy/README.md).
 
 ## Логирование
 
-Приложение использует **Logback** для логирования всех операций.
+Приложение использует **Logback** (`src/main/resources/logback-spring.xml`).
 
-**Конфигурация:** `src/main/resources/logback-spring.xml`
+| Профиль | Куда пишутся логи |
+|---------|-------------------|
+| `dev` | Консоль + файлы `./logs/` с ротацией (application.log — 30 дней, error.log — 90 дней) |
+| `prod` | Только консоль — логи собирает Docker (`docker compose logs`) |
 
-### Appenders (куда пишутся логи)
-
-| Appender | Назначение | Путь к файлу | Формат даты | Ротация |
-|----------|------------|--------------|-------------|---------|
-| `CONSOLE` | Вывод в консоль | — | `HH:mm:ss.SSS` | — |
-| `FILE` | Все логи приложения | `./logs/application.log` | `yyyy-MM-dd HH:mm:ss` | Ежедневно, 30 дней, макс. 1GB |
-| `ERROR_FILE` | Только ошибки (ERROR и выше) | `./logs/error.log` | `yyyy-MM-dd HH:mm:ss` | Ежедневно, 90 дней, макс. 500MB |
-
-**Формат лога:**
-```
-2025-01-05 12:30:45 [http-nio-8080-exec-1] INFO  c.s.controller.UserController - Created new user: admin
-```
-
-### Уровни логирования
-
-| Компонент | Уровень | Что логируется |
-|-----------|---------|----------------|
-| `com.subscriptionmonitor` | **DEBUG** | Ваш код: все операции (контроллеры, сервисы, планировщики) |
-| `org.springframework` | **INFO** | Spring Framework: запуск, конфигурация, важные события |
-| `org.hibernate` | **INFO** | Hibernate: создание сессий, транзакции |
-| `org.hibernate.SQL` | **DEBUG** | SQL запросы к базе данных |
-| `root` (остальное) | **INFO** | Сторонние библиотеки: только важные события |
-
-**Уровни (от меньшего к большему):** DEBUG < INFO < WARN < ERROR
-
-**Что означают уровни:**
-- **ERROR** — критические ошибки (приложение сломалось)
-- **WARN** — предупреждения (что-то странное, но работает)
-- **INFO** — важные события (создан пользователь, запущен сервер)
-- **DEBUG** — подробная информация для отладки (SQL запросы, детали операций)
-
-### Что именно логируется
-
-**Контроллеры (REST API):**
-- Входящие HTTP запросы (метод, URL, параметры)
-- Результаты выполнения операций
-- Ошибки валидации и исключения
-
-**Сервисы (бизнес-логика):**
-- CRUD операции с сущностями (создание, обновление, удаление)
-- Результаты выполнения операций
-- Все исключения с полным stack trace
-
-**Планировщики:**
-- Запуск планировщиков
-- Количество обработанных записей
-- Ошибки при обработке
-
-**Безопасность:**
-- Попытки аутентификации
-- Проверка прав доступа
-- Ошибки авторизации (403)
-
-**База данных (SQL):**
-- SQL запросы (SELECT, INSERT, UPDATE, DELETE)
-- Параметры запросов (bind переменные)
-- Транзакции и сессии Hibernate
+Уровни логирования настраиваются в `application-dev.properties` и `application-prod.properties`: в dev включён вывод SQL-запросов и DEBUG собственного кода, в prod — INFO.
 
 ## Быстрый старт
 
-### 1. Удаление старой БД
+### Вариант 1: всё в Docker
 
 ```bash
-psql -U postgres -c "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'subscription_monitor';"
-psql -U postgres -c "DROP DATABASE IF EXISTS subscription_monitor;"
+docker compose up -d --wait
 ```
 
-### 2. Инициализация БД
+Поднимает PostgreSQL, приложение и веб-интерфейс. Flyway сам создаст схему в пустой базе.
+
+- Веб-интерфейс: http://localhost
+- Swagger: http://localhost:8080/swagger-ui.html
+
+### Вариант 2: для разработки
 
 ```bash
-cd src/main/resources/sql
-psql -U postgres -f init.sql
+docker compose up -d postgres     # только база
+mvn spring-boot:run               # сервер на :8080
+cd frontend && npm install && npm run dev   # Vite dev server на :5173 с прокси /api
 ```
 
-### 3. Запуск Spring Boot с тестами
+### Тестовый пользователь
 
-```bash
-mvn clean test spring-boot:run
-```
+| Username | Password | Role |
+|----------|----------|------|
+| admin | admin123 | ADMIN |
 
-### 4. Открыть Swagger
-
-[![Swagger UI](https://img.shields.io/badge/Swagger-UI-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)](http://localhost:8080/swagger-ui.html)
-
-### 5. Запуск GUI
-
-```bash
-mvn exec:java
-```
-
-**Тестовый пользователь**:
-
-| Username | Password | Role | Email |
-|----------|----------|------|-------|
-| admin | admin123 | ADMIN | admin@subscriptionmonitor.com |
-
-Дополнительных пользователей можно создать через регистрацию (GUI или API `/api/auth/register`).
+Создаётся автоматически в dev-профиле. Дополнительных пользователей можно завести через экран регистрации или `POST /api/auth/register`.
 
 ## Структура проекта
 
@@ -446,154 +417,57 @@ subscription-monitor/
 │   ├── main/
 │   │   ├── java/com/subscriptionmonitor/
 │   │   │   ├── config/                       # Настройки приложения
-│   │   │   │   ├── DataInitializer.java      # Создание тестовых данных при старте
-│   │   │   │   ├── SecurityConfig.java       # Настройки безопасности
+│   │   │   │   ├── DataInitializer.java      # Стартовые данные (категории, admin)
+│   │   │   │   ├── SecurityConfig.java       # Сессионная аутентификация, CSRF
 │   │   │   │   └── SwaggerConfig.java        # Настройки документации API
-│   │   │   ├── controller/                   # Контроллеры REST API
-│   │   │   │   ├── AnalyticsController.java
-│   │   │   │   ├── AuthController.java
-│   │   │   │   ├── CategoryController.java
-│   │   │   │   ├── NotificationController.java
-│   │   │   │   ├── PaymentController.java
-│   │   │   │   ├── SubscriptionController.java
-│   │   │   │   └── UserController.java
+│   │   │   ├── controller/                   # Контроллеры REST API (7 шт)
 │   │   │   ├── dto/                          # Объекты для передачи данных через API
-│   │   │   │   ├── CategoryDto.java
-│   │   │   │   ├── CategoryResponse.java
-│   │   │   │   ├── CategoryStatisticsDto.java
-│   │   │   │   ├── ChangePasswordRequest.java
-│   │   │   │   ├── CreateCategoryRequest.java
-│   │   │   │   ├── CreateNotificationRequest.java
-│   │   │   │   ├── CreatePaymentRequest.java
-│   │   │   │   ├── CreateSubscriptionRequest.java
-│   │   │   │   ├── CreateUserRequest.java
-│   │   │   │   ├── ErrorResponse.java
-│   │   │   │   ├── NotificationDto.java
-│   │   │   │   ├── NotificationResponse.java
-│   │   │   │   ├── PaymentDto.java
-│   │   │   │   ├── PaymentResponse.java
-│   │   │   │   ├── RegisterRequest.java
-│   │   │   │   ├── SubscriptionDto.java
-│   │   │   │   ├── SubscriptionResponse.java
-│   │   │   │   ├── UpcomingPaymentDto.java
-│   │   │   │   ├── UpdateCategoryRequest.java
-│   │   │   │   ├── UpdateEmailRequest.java
-│   │   │   │   ├── UpdateNotificationRequest.java
-│   │   │   │   ├── UpdatePaymentRequest.java
-│   │   │   │   ├── UpdateSubscriptionRequest.java
-│   │   │   │   ├── UpdateUserRequest.java
-│   │   │   │   ├── UserDto.java
-│   │   │   │   ├── UserResponse.java
-│   │   │   │   └── UserStatisticsDto.java
-│   │   │   ├── exception/                    # Исключения
+│   │   │   ├── exception/                    # Иерархия исключений
 │   │   │   │   ├── base/                     # Базовые классы
-│   │   │   │   │   ├── BaseException.java
-│   │   │   │   │   ├── EntityNotFoundException.java
-│   │   │   │   │   └── ValidationException.java
 │   │   │   │   ├── notfound/                 # Ошибки "не найдено" (404)
-│   │   │   │   │   ├── CategoryNotFoundException.java
-│   │   │   │   │   ├── NotificationNotFoundException.java
-│   │   │   │   │   ├── PaymentNotFoundException.java
-│   │   │   │   │   ├── SubscriptionNotFoundException.java
-│   │   │   │   │   └── UserNotFoundException.java
 │   │   │   │   ├── validation/               # Ошибки валидации (400)
-│   │   │   │   │   ├── CategoryValidationException.java
-│   │   │   │   │   ├── NotificationValidationException.java
-│   │   │   │   │   ├── PaymentValidationException.java
-│   │   │   │   │   ├── SubscriptionValidationException.java
-│   │   │   │   │   └── UserValidationException.java
-│   │   │   │   └── special/                  # Специальные ошибки (410)
-│   │   │   │       └── LegacyCategoryException.java
-│   │   │   ├── gui/                          # Графический интерфейс (Swing)
-│   │   │   │   ├── dialog/                   # Всплывающие окна
-│   │   │   │   │   ├── AboutDialog.java
-│   │   │   │   │   ├── CategoryDialog.java
-│   │   │   │   │   ├── LoginDialog.java
-│   │   │   │   │   ├── RegistrationDialog.java
-│   │   │   │   │   ├── SubscriptionDialog.java
-│   │   │   │   │   └── UserDialog.java
-│   │   │   │   ├── exception/                # Обработка ошибок API в GUI
-│   │   │   │   │   └── ApiException.java
-│   │   │   │   ├── model/                    # Модели таблиц для GUI
-│   │   │   │   │   ├── CategoryTableModel.java
-│   │   │   │   │   ├── NotificationTableModel.java
-│   │   │   │   │   ├── SubscriptionTableModel.java
-│   │   │   │   │   └── UserTableModel.java
-│   │   │   │   ├── panel/                    # Вкладки приложения
-│   │   │   │   │   ├── CategoryPanel.java
-│   │   │   │   │   ├── NotificationPanel.java
-│   │   │   │   │   ├── ProfilePanel.java
-│   │   │   │   │   ├── StatisticsPanel.java
-│   │   │   │   │   ├── SubscriptionPanel.java
-│   │   │   │   │   └── UserPanel.java
-│   │   │   │   ├── util/                     # Вспомогательные классы для GUI
-│   │   │   │   │   ├── ErrorDialogUtils.java
-│   │   │   │   │   ├── RestClient.java
-│   │   │   │   │   ├── StyleUtils.java
-│   │   │   │   │   └── ValidationUtils.java
-│   │   │   │   └── SubscriptionMonitorGUI.java
-│   │   │   ├── handler/                      # Обработка всех ошибок API
-│   │   │   │   └── GlobalExceptionHandler.java
-│   │   │   ├── model/                        # Модели данных
-│   │   │   │   ├── entity/                   # Сущности
-│   │   │   │   │   ├── BaseEntity.java
-│   │   │   │   │   ├── Category.java
-│   │   │   │   │   ├── Notification.java
-│   │   │   │   │   ├── Payment.java
-│   │   │   │   │   ├── Subscription.java
-│   │   │   │   │   └── User.java
+│   │   │   │   └── special/                  # LegacyCategoryException (410)
+│   │   │   ├── handler/                      # GlobalExceptionHandler
+│   │   │   ├── model/
+│   │   │   │   ├── entity/                   # Сущности JPA
 │   │   │   │   └── enums/                    # Перечисления
-│   │   │   │       ├── CategoryType.java
-│   │   │   │       ├── Currency.java
-│   │   │   │       ├── NotificationType.java
-│   │   │   │       └── UserRole.java
-│   │   │   ├── repository/                   # Работа с БД
-│   │   │   │   ├── CategoryRepository.java
-│   │   │   │   ├── NotificationRepository.java
-│   │   │   │   ├── PaymentRepository.java
-│   │   │   │   ├── SubscriptionRepository.java
-│   │   │   │   └── UserRepository.java
-│   │   │   ├── scheduler/                    # Автоматические задачи
-│   │   │   │   ├── NotificationScheduler.java
-│   │   │   │   └── PaymentProcessor.java
-│   │   │   ├── security/                     # Безопасность и проверка прав
-│   │   │   │   ├── CategorySecurityService.java
-│   │   │   │   ├── CustomAccessDeniedHandler.java
-│   │   │   │   ├── CustomAuthenticationEntryPoint.java
-│   │   │   │   ├── SecurityService.java
-│   │   │   │   └── UserDetailsServiceImpl.java
+│   │   │   ├── repository/                   # Spring Data репозитории
+│   │   │   ├── scheduler/                    # NotificationScheduler, PaymentProcessor
+│   │   │   ├── security/                     # Проверки прав, CSRF-обработчики
 │   │   │   ├── service/                      # Бизнес-логика
-│   │   │   │   ├── AnalyticsService.java
-│   │   │   │   ├── CategoryService.java
-│   │   │   │   ├── NotificationService.java
-│   │   │   │   ├── PaymentService.java
-│   │   │   │   ├── SubscriptionService.java
-│   │   │   │   └── UserService.java
 │   │   │   └── SubscriptionMonitorApplication.java
-│   │   └── resources/                        # Конфигурация и скрипты БД
-│   │       ├── sql/                          # SQL скрипты для PostgreSQL
-│   │       │   ├── init.sql                  # Главный скрипт инициализации
-│   │       │   ├── create_database.sql       # Создание БД и расширений
-│   │       │   ├── create_tables.sql         # Создание таблиц
-│   │       │   ├── constraints.sql           # Constraints (без триггеров)
-│   │       │   ├── create_views.sql          # Аналитические витрины (3 view)
-│   │       │   ├── create_indexes.sql        # Индексы для оптимизации
-│   │       │   ├── create_roles.sql          # Роли БД
-│   │       │   ├── clean-database.sql        # Очистка данных БД
-│   │       │   └── README.md                 # Документация по БД
-│   │       ├── application.properties
+│   │   └── resources/
+│   │       ├── db/migration/                 # Миграции Flyway
+│   │       │   ├── V1__create_tables.sql     # Таблицы и ограничения
+│   │       │   ├── V2__create_indexes.sql    # Индексы
+│   │       │   └── V3__create_views.sql      # Аналитические витрины (4 view)
+│   │       ├── application.properties        # Общие настройки (env-переменные)
+│   │       ├── application-dev.properties    # Профиль разработки
+│   │       ├── application-prod.properties   # Прод-профиль
 │   │       └── logback-spring.xml
-│   └── test/java/com/subscriptionmonitor/    # Тесты (5 классов)
-│       └── service/                          # Тесты сервисов
-│           ├── CategoryServiceTest.java
-│           ├── NotificationServiceTest.java
-│           ├── PaymentServiceTest.java
-│           ├── SubscriptionServiceTest.java
-│           └── UserServiceTest.java
-├── logs/                                     # Файлы логов
-│   ├── application.log
-│   └── error.log
-├── .gitignore
+│   └── test/java/com/subscriptionmonitor/
+│       ├── service/                          # Модульные тесты (Mockito)
+│       └── integration/                      # Интеграционные тесты (Testcontainers)
+├── frontend/                                 # Веб-клиент (Vue 3 + Vite)
+│   ├── src/
+│   │   ├── api/                              # Axios-клиент и методы API
+│   │   ├── components/                       # AppLayout
+│   │   ├── router/                           # Маршруты и guard'ы
+│   │   ├── stores/                           # Pinia (аутентификация)
+│   │   ├── utils/                            # Форматирование, обработка ошибок
+│   │   └── views/                            # Экраны приложения
+│   ├── Caddyfile                             # Локальная конфигурация Caddy
+│   └── Dockerfile                            # Сборка статики + Caddy
+├── deploy/                                   # Файлы сервера (см. deploy/README.md)
+│   ├── docker-compose.prod.yml               # Прод-стек с blue-green
+│   ├── caddy/Caddyfile                       # TLS Origin CA + mTLS Cloudflare
+│   ├── deploy.sh / switch.sh / finish.sh / rollback.sh
+│   └── cloudflare-allowlist.sh               # Файрвол только для IP Cloudflare
+├── .github/workflows/                        # CI/CD
+│   ├── ci.yml                                # Тесты + образы с main
+│   └── deploy.yml                            # Релиз и выкатка по тегу v*
+├── Dockerfile                                # Многостадийная сборка бэкенда
+├── docker-compose.yml                        # Локальный стек разработки
 ├── pom.xml
 └── README.md
 ```
