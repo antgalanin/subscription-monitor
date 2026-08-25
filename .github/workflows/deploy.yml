@@ -30,7 +30,7 @@ jobs:
       - name: Build and push app image
         uses: docker/build-push-action@v7
         with:
-          context: .
+          context: backend
           platforms: linux/amd64
           push: true
           tags: ghcr.io/${{ github.repository }}-app:${{ github.ref_name }}

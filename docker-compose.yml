@@ -17,7 +17,7 @@ services:
       retries: 10
 
   app:
-    build: .
+    build: ./backend
     image: subscription-monitor-app:latest
     environment:
       SPRING_PROFILES_ACTIVE: dev

@@ -154,7 +154,7 @@ Caddy раздаёт статику и проксирует `/api/*` на акт
 
 ## База данных
 
-Схемой базы данных управляет **Flyway**: версионированные миграции лежат в `src/main/resources/db/migration/` и применяются автоматически при старте приложения. Hibernate работает в режиме `validate` — не меняет схему, а сверяет с ней сущности.
+Схемой базы данных управляет **Flyway**: версионированные миграции лежат в `backend/src/main/resources/db/migration/` и применяются автоматически при старте приложения. Hibernate работает в режиме `validate` — не меняет схему, а сверяет с ней сущности.
 
 | Миграция | Содержимое |
 |----------|------------|
@@ -328,8 +328,8 @@ http://localhost:8080/swagger-ui.html
 | Фронтенд (25) | Vitest, Vue Test Utils | Утилиты форматирования, стор аутентификации, компонент входа |
 
 ```bash
-mvn verify                                    # модульные + интеграционные (нужен Docker)
-mvn test -Dtest=UserServiceTest               # один класс
+cd backend && mvn verify                      # модульные + интеграционные (нужен Docker)
+cd backend && mvn test -Dtest=UserServiceTest # один класс
 cd frontend && npm test                       # тесты фронтенда
 ```
 
@@ -371,7 +371,7 @@ Docker-образ бэкенда собирается многостадийно
 
 ## Логирование
 
-Приложение использует **Logback** (`src/main/resources/logback-spring.xml`).
+Приложение использует **Logback** (`backend/src/main/resources/logback-spring.xml`).
 
 | Профиль | Куда пишутся логи |
 |---------|-------------------|
@@ -396,8 +396,8 @@ docker compose up -d --wait
 ### Вариант 2: для разработки
 
 ```bash
-docker compose up -d postgres     # только база
-mvn spring-boot:run               # сервер на :8080
+docker compose up -d postgres               # только база
+cd backend && mvn spring-boot:run           # сервер на :8080
 cd frontend && npm install && npm run dev   # Vite dev server на :5173 с прокси /api
 ```
 
@@ -413,49 +413,55 @@ cd frontend && npm install && npm run dev   # Vite dev server на :5173 с пр
 
 ```
 subscription-monitor/
-├── src/
-│   ├── main/
-│   │   ├── java/com/subscriptionmonitor/
-│   │   │   ├── config/                       # Настройки приложения
-│   │   │   │   ├── DataInitializer.java      # Стартовые данные (категории, admin)
-│   │   │   │   ├── SecurityConfig.java       # Сессионная аутентификация, CSRF
-│   │   │   │   └── SwaggerConfig.java        # Настройки документации API
-│   │   │   ├── controller/                   # Контроллеры REST API (7 шт)
-│   │   │   ├── dto/                          # Объекты для передачи данных через API
-│   │   │   ├── exception/                    # Иерархия исключений
-│   │   │   │   ├── base/                     # Базовые классы
-│   │   │   │   ├── notfound/                 # Ошибки "не найдено" (404)
-│   │   │   │   ├── validation/               # Ошибки валидации (400)
-│   │   │   │   └── special/                  # LegacyCategoryException (410)
-│   │   │   ├── handler/                      # GlobalExceptionHandler
-│   │   │   ├── model/
-│   │   │   │   ├── entity/                   # Сущности JPA
-│   │   │   │   └── enums/                    # Перечисления
-│   │   │   ├── repository/                   # Spring Data репозитории
-│   │   │   ├── scheduler/                    # NotificationScheduler, PaymentProcessor
-│   │   │   ├── security/                     # Проверки прав, CSRF-обработчики
-│   │   │   ├── service/                      # Бизнес-логика
-│   │   │   └── SubscriptionMonitorApplication.java
-│   │   └── resources/
-│   │       ├── db/migration/                 # Миграции Flyway
-│   │       │   ├── V1__create_tables.sql     # Таблицы и ограничения
-│   │       │   ├── V2__create_indexes.sql    # Индексы
-│   │       │   └── V3__create_views.sql      # Аналитические витрины (4 view)
-│   │       ├── application.properties        # Общие настройки (env-переменные)
-│   │       ├── application-dev.properties    # Профиль разработки
-│   │       ├── application-prod.properties   # Прод-профиль
-│   │       └── logback-spring.xml
-│   └── test/java/com/subscriptionmonitor/
-│       ├── service/                          # Модульные тесты (Mockito)
-│       └── integration/                      # Интеграционные тесты (Testcontainers)
+├── backend/                                  # Сервер: Spring Boot + PostgreSQL
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/com/subscriptionmonitor/
+│   │   │   │   ├── config/                   # Настройки приложения
+│   │   │   │   │   ├── DataInitializer.java  # Стартовые данные (категории, admin)
+│   │   │   │   │   ├── SecurityConfig.java   # Сессионная аутентификация, CSRF
+│   │   │   │   │   └── SwaggerConfig.java    # Настройки документации API
+│   │   │   │   ├── controller/               # Контроллеры REST API (7 шт)
+│   │   │   │   ├── dto/                      # Объекты для передачи данных через API
+│   │   │   │   ├── exception/                # Иерархия исключений
+│   │   │   │   │   ├── base/                 # Базовые классы
+│   │   │   │   │   ├── notfound/             # Ошибки "не найдено" (404)
+│   │   │   │   │   ├── validation/           # Ошибки валидации (400)
+│   │   │   │   │   └── special/              # LegacyCategoryException (410)
+│   │   │   │   ├── handler/                  # GlobalExceptionHandler
+│   │   │   │   ├── model/
+│   │   │   │   │   ├── entity/               # Сущности JPA
+│   │   │   │   │   └── enums/                # Перечисления
+│   │   │   │   ├── repository/               # Spring Data репозитории
+│   │   │   │   ├── scheduler/                # NotificationScheduler, PaymentProcessor
+│   │   │   │   ├── security/                 # Проверки прав, CSRF-обработчики
+│   │   │   │   ├── service/                  # Бизнес-логика
+│   │   │   │   └── SubscriptionMonitorApplication.java
+│   │   │   └── resources/
+│   │   │       ├── db/migration/             # Миграции Flyway
+│   │   │       │   ├── V1__create_tables.sql # Таблицы и ограничения
+│   │   │       │   ├── V2__create_indexes.sql
+│   │   │       │   └── V3__create_views.sql  # Аналитические витрины (4 view)
+│   │   │       ├── application.properties    # Общие настройки (env-переменные)
+│   │   │       ├── application-dev.properties
+│   │   │       ├── application-prod.properties
+│   │   │       └── logback-spring.xml
+│   │   └── test/java/com/subscriptionmonitor/
+│   │       ├── service/                      # Модульные тесты (Mockito)
+│   │       └── integration/                  # Интеграционные тесты (Testcontainers)
+│   ├── Dockerfile                            # Многостадийная сборка бэкенда
+│   └── pom.xml
 ├── frontend/                                 # Веб-клиент (Vue 3 + Vite)
 │   ├── src/
 │   │   ├── api/                              # Axios-клиент и методы API
-│   │   ├── components/                       # AppLayout
+│   │   ├── components/                       # Каркас, логотип, общие блоки
+│   │   ├── composables/                      # Тема, брейкпоинты, владельцы записей
 │   │   ├── router/                           # Маршруты и guard'ы
 │   │   ├── stores/                           # Pinia (аутентификация)
+│   │   ├── styles/                           # Токены, база, правки Element Plus
 │   │   ├── utils/                            # Форматирование, обработка ошибок
 │   │   └── views/                            # Экраны приложения
+│   ├── public/                               # Фавиконка, иконки PWA, манифест
 │   ├── Caddyfile                             # Локальная конфигурация Caddy
 │   └── Dockerfile                            # Сборка статики + Caddy
 ├── deploy/                                   # Файлы сервера (см. deploy/README.md)
@@ -466,8 +472,6 @@ subscription-monitor/
 ├── .github/workflows/                        # CI/CD
 │   ├── ci.yml                                # Тесты + образы с main
 │   └── deploy.yml                            # Релиз и выкатка по тегу v*
-├── Dockerfile                                # Многостадийная сборка бэкенда
 ├── docker-compose.yml                        # Локальный стек разработки
-├── pom.xml
 └── README.md
 ```
