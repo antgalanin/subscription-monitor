@@ -1,10 +1,11 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Edit, Refresh } from '@element-plus/icons-vue'
+import { Delete, Edit, Plus, Refresh } from '@element-plus/icons-vue'
 import { usersApi } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import { invalidateOwners } from '../composables/useOwners'
 import { formatDate, userRoleLabel, pluralize, errorMessage } from '../utils/format'
 import PageHeader from '../components/PageHeader.vue'
 import StatusTag from '../components/StatusTag.vue'
@@ -18,7 +19,9 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const saving = ref(false)
 const editingId = ref(null)
-const form = reactive({ email: '', role: 'USER', notificationDays: 3, password: '' })
+const form = reactive({ username: '', email: '', role: 'USER', notificationDays: 3, password: '' })
+
+const isCreating = computed(() => editingId.value === null)
 
 const dialogWidth = computed(() => (isMobile.value ? '94vw' : '440px'))
 
@@ -45,9 +48,16 @@ async function load() {
   }
 }
 
+function openCreate() {
+  editingId.value = null
+  Object.assign(form, { username: '', email: '', role: 'USER', notificationDays: 3, password: '' })
+  dialogVisible.value = true
+}
+
 function openEdit(row) {
   editingId.value = row.id
   Object.assign(form, {
+    username: row.username,
     email: row.email,
     role: row.role,
     notificationDays: row.notificationDays,
@@ -61,6 +71,14 @@ async function save() {
     ElMessage.warning('Введите email')
     return
   }
+  if (isCreating.value && form.username.trim().length < 3) {
+    ElMessage.warning('Имя пользователя должно содержать минимум 3 символа')
+    return
+  }
+  if (isCreating.value && form.password.length < 8) {
+    ElMessage.warning('Пароль должен содержать минимум 8 символов')
+    return
+  }
   saving.value = true
   try {
     const payload = {
@@ -71,12 +89,21 @@ async function save() {
     if (form.password) {
       payload.password = form.password
     }
-    await usersApi.update(editingId.value, payload)
-    ElMessage.success('Пользователь обновлён')
+    if (isCreating.value) {
+      await usersApi.create({ ...payload, username: form.username.trim() })
+      ElMessage.success('Пользователь создан')
+    } else {
+      await usersApi.update(editingId.value, payload)
+      ElMessage.success('Пользователь обновлён')
+    }
+    invalidateOwners()
     dialogVisible.value = false
     await load()
   } catch (error) {
-    ElMessage.error(errorMessage(error, 'Не удалось обновить пользователя'))
+    const fallback = isCreating.value
+      ? 'Не удалось создать пользователя'
+      : 'Не удалось обновить пользователя'
+    ElMessage.error(errorMessage(error, fallback))
   } finally {
     saving.value = false
   }
@@ -94,6 +121,7 @@ async function remove(row) {
   }
   try {
     await usersApi.remove(row.id)
+    invalidateOwners()
     ElMessage.success('Пользователь удалён')
     await load()
   } catch (error) {
@@ -109,6 +137,7 @@ onMounted(load)
     <PageHeader title="Пользователи" :subtitle="subtitle">
       <template #actions>
         <el-button :icon="Refresh" @click="load">Обновить</el-button>
+        <el-button type="primary" :icon="Plus" @click="openCreate">Добавить пользователя</el-button>
       </template>
     </PageHeader>
 
@@ -198,8 +227,15 @@ onMounted(load)
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" title="Редактирование пользователя" :width="dialogWidth">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isCreating ? 'Новый пользователь' : 'Редактирование пользователя'"
+      :width="dialogWidth"
+    >
       <el-form label-position="top">
+        <el-form-item v-if="isCreating" label="Имя пользователя">
+          <el-input v-model="form.username" autocomplete="off" />
+        </el-form-item>
         <el-form-item label="Email">
           <el-input v-model="form.email" type="email" />
         </el-form-item>
@@ -212,8 +248,8 @@ onMounted(load)
         <el-form-item label="Уведомлять за (дней)">
           <el-input-number v-model="form.notificationDays" :min="0" class="full" />
         </el-form-item>
-        <el-form-item label="Новый пароль (не обязательно)">
-          <el-input v-model="form.password" type="password" show-password />
+        <el-form-item :label="isCreating ? 'Пароль' : 'Новый пароль (не обязательно)'">
+          <el-input v-model="form.password" type="password" show-password autocomplete="new-password" />
         </el-form-item>
       </el-form>
       <template #footer>

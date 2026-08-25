@@ -3,14 +3,20 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh, TrendCharts } from '@element-plus/icons-vue'
 import { analyticsApi } from '../api'
+import { useAuthStore } from '../stores/auth'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import { useOwners } from '../composables/useOwners'
 import { formatMoney, formatDate, relativeDate, categoryTypeLabel, errorMessage } from '../utils/format'
 import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import StatusTag from '../components/StatusTag.vue'
 import EmptyState from '../components/EmptyState.vue'
 
+const auth = useAuthStore()
 const { isMobile } = useBreakpoint()
+const { owners, showOwner, loadOwners } = useOwners()
+
+const selectedUserId = ref(null)
 
 const statistics = ref(null)
 const upcomingPayments = ref([])
@@ -31,6 +37,17 @@ const URGENCY = {
 function urgency(value) {
   return URGENCY[value] ?? { label: value ?? '—', tone: 'slate' }
 }
+
+const viewedUsername = computed(
+  () => owners.value.find((user) => user.id === selectedUserId.value)?.username
+)
+
+const subtitle = computed(() => {
+  if (showOwner.value && selectedUserId.value !== auth.user?.id && viewedUsername.value) {
+    return `Данные пользователя ${viewedUsername.value}`
+  }
+  return 'Расходы, ближайшие списания и разрез по категориям'
+})
 
 const upcomingSorted = computed(() =>
   [...upcomingPayments.value].sort(
@@ -61,12 +78,21 @@ function share(row) {
 
 async function load() {
   loading.value = true
+  const userId = showOwner.value ? selectedUserId.value : null
   try {
-    const [statsRes, upcomingRes, catsRes] = await Promise.all([
-      analyticsApi.myStatistics(),
-      analyticsApi.myUpcomingPayments(),
-      analyticsApi.myCategoryStatistics()
-    ])
+    const [statsRes, upcomingRes, catsRes] = await Promise.all(
+      userId
+        ? [
+            analyticsApi.userStatistics(userId),
+            analyticsApi.userUpcomingPayments(userId),
+            analyticsApi.userCategoryStatistics(userId)
+          ]
+        : [
+            analyticsApi.myStatistics(),
+            analyticsApi.myUpcomingPayments(),
+            analyticsApi.myCategoryStatistics()
+          ]
+    )
     statistics.value = statsRes.data
     upcomingPayments.value = upcomingRes.data
     categoryStatistics.value = catsRes.data
@@ -77,13 +103,26 @@ async function load() {
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  await loadOwners()
+  selectedUserId.value = auth.user?.id ?? null
+  await load()
+})
 </script>
 
 <template>
   <div v-loading="loading" class="page">
-    <PageHeader title="Статистика" subtitle="Расходы, ближайшие списания и разрез по категориям">
+    <PageHeader title="Статистика" :subtitle="subtitle">
       <template #actions>
+        <el-select
+          v-if="showOwner"
+          v-model="selectedUserId"
+          class="user-select"
+          placeholder="Пользователь"
+          @change="load"
+        >
+          <el-option v-for="user in owners" :key="user.id" :label="user.username" :value="user.id" />
+        </el-select>
         <el-button :icon="Refresh" @click="load">Обновить</el-button>
       </template>
     </PageHeader>
@@ -243,6 +282,10 @@ onMounted(load)
 
 .cell-strong {
   font-weight: 600;
+}
+
+.user-select {
+  width: 200px;
 }
 
 .share {

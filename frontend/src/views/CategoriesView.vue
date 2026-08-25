@@ -5,6 +5,7 @@ import { Delete, Edit, Lock, Plus, PriceTag } from '@element-plus/icons-vue'
 import { categoriesApi } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import { useOwners } from '../composables/useOwners'
 import { categoryTypeLabel, formatDate, pluralize, errorMessage } from '../utils/format'
 import PageHeader from '../components/PageHeader.vue'
 import StatusTag from '../components/StatusTag.vue'
@@ -12,6 +13,7 @@ import EmptyState from '../components/EmptyState.vue'
 
 const auth = useAuthStore()
 const { isMobile } = useBreakpoint()
+const { showOwner, loadOwners, ownerName, isForeign } = useOwners()
 
 const categories = ref([])
 const loading = ref(false)
@@ -28,8 +30,12 @@ const dialogWidth = computed(() => (isMobile.value ? '94vw' : '420px'))
 const subtitle = computed(() => {
   const total = categories.value.length
   if (!total) return 'Список пуст'
-  const own = categories.value.filter((c) => c.type === 'CUSTOM').length
-  return `${total} ${pluralize(total, ['категория', 'категории', 'категорий'])} · ${own} своих`
+  const custom = categories.value.filter((c) => c.type === 'CUSTOM').length
+  const noun = pluralize(total, ['категория', 'категории', 'категорий'])
+  const customNoun = showOwner.value
+    ? pluralize(custom, ['пользовательская', 'пользовательские', 'пользовательских'])
+    : pluralize(custom, ['своя', 'свои', 'своих'])
+  return `${total} ${noun} · ${custom} ${customNoun}`
 })
 
 function isEditable(row) {
@@ -39,7 +45,7 @@ function isEditable(row) {
 async function load() {
   loading.value = true
   try {
-    const { data } = await categoriesApi.list()
+    const [{ data }] = await Promise.all([categoriesApi.list(), loadOwners()])
     categories.value = data.filter((c) => c.type !== 'LEGACY')
   } catch (error) {
     ElMessage.error(errorMessage(error, 'Не удалось загрузить категории'))
@@ -135,6 +141,10 @@ onMounted(load)
           />
         </div>
         <div class="record__meta">
+          <div v-if="showOwner">
+            <p class="record__label">Владелец</p>
+            <p class="record__value">{{ ownerName(row.createdByUserId) }}</p>
+          </div>
           <div>
             <p class="record__label">Создана</p>
             <p class="record__value">{{ formatDate(row.createdAt) }}</p>
@@ -160,6 +170,13 @@ onMounted(load)
             :label="categoryTypeLabel(row.type)"
             :dot="false"
           />
+        </template>
+      </el-table-column>
+      <el-table-column v-if="showOwner" label="Владелец" min-width="160">
+        <template #default="{ row }">
+          <span :class="{ 'cell-foreign': isForeign(row.createdByUserId) }">
+            {{ ownerName(row.createdByUserId) }}
+          </span>
         </template>
       </el-table-column>
       <el-table-column label="Создана" width="150" class-name="num-cell">
@@ -204,6 +221,10 @@ onMounted(load)
 <style scoped>
 .cell-strong {
   font-weight: 600;
+}
+
+.cell-foreign {
+  color: var(--tone-blue);
 }
 
 .row-actions {

@@ -4,12 +4,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { CreditCard, Delete, Edit, Plus } from '@element-plus/icons-vue'
 import { subscriptionsApi, paymentsApi, categoriesApi } from '../api'
 import { useBreakpoint } from '../composables/useBreakpoint'
+import { useOwners } from '../composables/useOwners'
 import { formatMoney, formatDate, relativeDate, daysUntil, pluralize, errorMessage } from '../utils/format'
 import PageHeader from '../components/PageHeader.vue'
 import StatusTag from '../components/StatusTag.vue'
 import EmptyState from '../components/EmptyState.vue'
 
 const { isMobile } = useBreakpoint()
+const { showOwner, loadOwners, ownerName, isForeign } = useOwners()
 
 const subscriptions = ref([])
 const payments = ref([])
@@ -53,7 +55,9 @@ const activeCount = computed(() => rows.value.filter((row) => row.isActive).leng
 const subtitle = computed(() => {
   const total = rows.value.length
   if (!total) return 'Список пуст'
-  return `${total} ${pluralize(total, ['подписка', 'подписки', 'подписок'])} · ${activeCount.value} активных`
+  const noun = pluralize(total, ['подписка', 'подписки', 'подписок'])
+  const scope = showOwner.value ? ' всех пользователей' : ''
+  return `${total} ${noun}${scope} · ${activeCount.value} активных`
 })
 
 const selectableCategories = computed(() => categories.value.filter((c) => c.type !== 'LEGACY'))
@@ -74,7 +78,8 @@ async function load() {
     const [subsRes, paysRes, catsRes] = await Promise.all([
       subscriptionsApi.list(),
       paymentsApi.list(),
-      categoriesApi.list()
+      categoriesApi.list(),
+      loadOwners()
     ])
     subscriptions.value = subsRes.data
     payments.value = paysRes.data
@@ -210,6 +215,10 @@ onMounted(load)
             <p class="record__label">Категория</p>
             <p class="record__value">{{ row.categoryName }}</p>
           </div>
+          <div v-if="showOwner">
+            <p class="record__label">Владелец</p>
+            <p class="record__value">{{ ownerName(row.userId) }}</p>
+          </div>
           <div>
             <p class="record__label">Период</p>
             <p class="record__value">
@@ -232,21 +241,26 @@ onMounted(load)
     </div>
 
     <el-table v-else v-loading="loading" :data="rows">
-      <el-table-column prop="name" label="Название" min-width="180">
+      <el-table-column prop="name" label="Название" min-width="160">
         <template #default="{ row }">
           <span class="cell-strong">{{ row.name }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="categoryName" label="Категория" min-width="150" />
-      <el-table-column label="Стоимость" width="140" class-name="num-cell">
+      <el-table-column prop="categoryName" label="Категория" min-width="130" />
+      <el-table-column v-if="showOwner" label="Владелец" min-width="120">
+        <template #default="{ row }">
+          <span :class="{ 'cell-foreign': isForeign(row.userId) }">{{ ownerName(row.userId) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="Стоимость" width="130" class-name="num-cell">
         <template #default="{ row }">{{ formatMoney(row.cost, row.currency) }}</template>
       </el-table-column>
-      <el-table-column label="Период" width="110" class-name="num-cell">
+      <el-table-column label="Период" width="100" class-name="num-cell">
         <template #default="{ row }">
           {{ row.billingPeriodDays ? `${row.billingPeriodDays} дн.` : '—' }}
         </template>
       </el-table-column>
-      <el-table-column label="Следующее списание" min-width="190">
+      <el-table-column label="Следующее списание" min-width="165">
         <template #default="{ row }">
           <span class="num">{{ formatDate(row.nextBillingDate) }}</span>
           <span class="cell-note" :class="`cell-note--${billingTone(row)}`">
@@ -254,7 +268,7 @@ onMounted(load)
           </span>
         </template>
       </el-table-column>
-      <el-table-column label="Статус" width="140">
+      <el-table-column label="Статус" width="145">
         <template #default="{ row }">
           <StatusTag
             :tone="row.isActive ? 'mint' : 'slate'"
@@ -262,7 +276,7 @@ onMounted(load)
           />
         </template>
       </el-table-column>
-      <el-table-column label="Действия" width="120" align="right">
+      <el-table-column label="Действия" width="110" align="right" fixed="right">
         <template #default="{ row }">
           <div class="row-actions">
             <el-button :icon="Edit" circle text title="Изменить" @click="openEdit(row)" />
@@ -344,6 +358,10 @@ onMounted(load)
 
 .cell-strong {
   font-weight: 600;
+}
+
+.cell-foreign {
+  color: var(--tone-blue);
 }
 
 .cell-note {

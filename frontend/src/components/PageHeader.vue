@@ -55,8 +55,10 @@ defineProps({
     width: 100%;
   }
 
-  .head__actions :deep(.el-button) {
+  .head__actions :deep(.el-button),
+  .head__actions :deep(.el-select) {
     flex: 1;
+    min-width: 0;
     margin-left: 0;
   }
 }

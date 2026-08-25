@@ -3,13 +3,19 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Bell, CircleCheck, Clock, Delete, Refresh } from '@element-plus/icons-vue'
 import { notificationsApi } from '../api'
+import { useOwners } from '../composables/useOwners'
 import { notificationTypeLabel, formatDateTime, pluralize, errorMessage } from '../utils/format'
 import PageHeader from '../components/PageHeader.vue'
 import StatusTag from '../components/StatusTag.vue'
 import EmptyState from '../components/EmptyState.vue'
 
+const { showOwner, loadOwners, ownerName } = useOwners()
+
 const notifications = ref([])
 const loading = ref(false)
+const scope = ref('mine')
+
+const showAll = computed(() => showOwner.value && scope.value === 'all')
 
 const sorted = computed(() =>
   [...notifications.value].sort(
@@ -20,7 +26,8 @@ const sorted = computed(() =>
 const subtitle = computed(() => {
   const total = notifications.value.length
   if (!total) return 'Новых уведомлений нет'
-  return `${total} ${pluralize(total, ['уведомление', 'уведомления', 'уведомлений'])}`
+  const noun = pluralize(total, ['уведомление', 'уведомления', 'уведомлений'])
+  return showAll.value ? `${total} ${noun} всех пользователей` : `${total} ${noun}`
 })
 
 function isUpcoming(row) {
@@ -30,7 +37,10 @@ function isUpcoming(row) {
 async function load() {
   loading.value = true
   try {
-    const { data } = await notificationsApi.myReceived()
+    const [{ data }] = await Promise.all([
+      showAll.value ? notificationsApi.listAll() : notificationsApi.myReceived(),
+      loadOwners()
+    ])
     notifications.value = data
   } catch (error) {
     ElMessage.error(errorMessage(error, 'Не удалось загрузить уведомления'))
@@ -65,6 +75,10 @@ onMounted(load)
   <div class="page">
     <PageHeader title="Уведомления" :subtitle="subtitle">
       <template #actions>
+        <el-radio-group v-if="showOwner" v-model="scope" class="scope" @change="load">
+          <el-radio-button value="mine">Мои</el-radio-button>
+          <el-radio-button value="all">Все</el-radio-button>
+        </el-radio-group>
         <el-button :icon="Refresh" @click="load">Обновить</el-button>
       </template>
     </PageHeader>
@@ -92,7 +106,14 @@ onMounted(load)
               :label="notificationTypeLabel(row.type)"
               :dot="false"
             />
+            <StatusTag
+              v-if="showAll"
+              :tone="row.isSent ? 'slate' : 'blue'"
+              :label="row.isSent ? 'Отправлено' : 'Ожидает'"
+              :dot="false"
+            />
             <time class="item__date num">{{ formatDateTime(row.notificationDate) }}</time>
+            <span v-if="showAll" class="item__owner">{{ ownerName(row.userId) }}</span>
           </div>
           <p class="item__message">{{ row.message }}</p>
         </div>
@@ -170,6 +191,16 @@ onMounted(load)
 .item__date {
   font-size: 12px;
   color: var(--ink-3);
+}
+
+.item__owner {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tone-blue);
+}
+
+.scope {
+  flex: none;
 }
 
 .item__message {

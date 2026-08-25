@@ -30,17 +30,22 @@ export const categoriesApi = {
 
 export const notificationsApi = {
   myReceived: () => client.get('/notifications/my/received'),
+  listAll: () => client.get('/notifications'),
   remove: (id) => client.delete(`/notifications/${id}`)
 }
 
 export const analyticsApi = {
   myStatistics: () => client.get('/analytics/my-statistics'),
   myUpcomingPayments: () => client.get('/analytics/my-upcoming-payments'),
-  myCategoryStatistics: () => client.get('/analytics/my-category-statistics')
+  myCategoryStatistics: () => client.get('/analytics/my-category-statistics'),
+  userStatistics: (userId) => client.get(`/analytics/users/${userId}/statistics`),
+  userUpcomingPayments: (userId) => client.get(`/analytics/users/${userId}/upcoming-payments`),
+  userCategoryStatistics: (userId) => client.get(`/analytics/users/${userId}/category-statistics`)
 }
 
 export const usersApi = {
   list: () => client.get('/users'),
+  create: (data) => client.post('/users', data),
   update: (id, data) => client.put(`/users/${id}`, data),
   remove: (id) => client.delete(`/users/${id}`)
 }
