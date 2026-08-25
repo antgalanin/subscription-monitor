@@ -1,0 +1,210 @@
+/* Design tokens. Light is the base, dark lives under html.dark (Element Plus convention) */
+
+:root {
+  /* Geometry */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-full: 999px;
+  --sidebar-w: 248px;
+  --topbar-h: 60px;
+  --page-max: 1280px;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Brand */
+  --brand-from: #34E7B8;
+  --brand-to: #0E9E7E;
+  --brand-gradient: linear-gradient(135deg, var(--brand-from) 0%, var(--brand-to) 100%);
+
+  /* Surfaces */
+  --bg: #F4F7FB;
+  --surface: #FFFFFF;
+  --surface-2: #F1F5F9;
+  --surface-3: #E7EEF6;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --topbar-bg: rgba(255, 255, 255, 0.82);
+  --scrim: rgba(15, 27, 46, 0.45);
+
+  /* Ink */
+  --ink: #0F1B2E;
+  --ink-2: #4A5A72;
+  --ink-3: #7A8AA3;
+
+  /* Status tones (always paired with a text label, never colour alone) */
+  --tone-mint: #0A7D63;
+  --tone-amber: #A05F00;
+  --tone-rose: #DC2743;
+  --tone-blue: #2563EB;
+  --tone-slate: #5A6A82;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(15, 27, 46, 0.06);
+  --shadow-md: 0 4px 16px rgba(15, 27, 46, 0.07);
+  --shadow-lg: 0 18px 44px -14px rgba(15, 27, 46, 0.22);
+  --ring: 0 0 0 3px rgba(10, 125, 99, 0.22);
+
+  color-scheme: light;
+
+  /* Element Plus mapping */
+  --el-color-primary: #0A7D63;
+  --el-color-primary-light-3: #54A492;
+  --el-color-primary-light-5: #85BEB1;
+  --el-color-primary-light-7: #B6D8D0;
+  --el-color-primary-light-8: #CEE5E0;
+  --el-color-primary-light-9: #E7F2EF;
+  --el-color-primary-dark-2: #08644F;
+  --el-color-success: #0A7D63;
+  --el-color-success-light-3: #54A492;
+  --el-color-success-light-5: #85BEB1;
+  --el-color-success-light-7: #B6D8D0;
+  --el-color-success-light-8: #CEE5E0;
+  --el-color-success-light-9: #E7F2EF;
+  --el-color-success-dark-2: #08644F;
+  --el-color-warning: #A05F00;
+  --el-color-warning-light-3: #BD8F4D;
+  --el-color-warning-light-5: #D0AF80;
+  --el-color-warning-light-7: #E3CFB3;
+  --el-color-warning-light-8: #ECDFCC;
+  --el-color-warning-light-9: #F6EFE6;
+  --el-color-warning-dark-2: #804C00;
+  --el-color-danger: #DC2743;
+  --el-color-danger-light-3: #E7687B;
+  --el-color-danger-light-5: #EE93A1;
+  --el-color-danger-light-7: #F5BEC7;
+  --el-color-danger-light-8: #F8D4D9;
+  --el-color-danger-light-9: #FCE9EC;
+  --el-color-danger-dark-2: #B01F36;
+  --el-color-error: #DC2743;
+  --el-color-error-light-3: #E7687B;
+  --el-color-error-light-5: #EE93A1;
+  --el-color-error-light-7: #F5BEC7;
+  --el-color-error-light-8: #F8D4D9;
+  --el-color-error-light-9: #FCE9EC;
+  --el-color-error-dark-2: #B01F36;
+  --el-color-info: #5A6A82;
+  --el-color-info-light-3: #8C97A8;
+  --el-color-info-light-5: #ADB5C1;
+  --el-color-info-light-7: #CED2DA;
+  --el-color-info-light-8: #DEE1E6;
+  --el-color-info-light-9: #EFF0F3;
+  --el-color-info-dark-2: #485568;
+}
+
+html.dark {
+  --bg: #0B1220;
+  --surface: #111B2E;
+  --surface-2: #16233A;
+  --surface-3: #1D2C46;
+  --border: #223148;
+  --border-strong: #31435F;
+  --topbar-bg: rgba(11, 18, 32, 0.78);
+  --scrim: rgba(3, 7, 15, 0.62);
+
+  --ink: #E8EEF8;
+  --ink-2: #A3B2C9;
+  --ink-3: #6E809C;
+
+  --tone-mint: #22D3A5;
+  --tone-amber: #F5B547;
+  --tone-rose: #FF6B85;
+  --tone-blue: #6BA5FF;
+  --tone-slate: #8394AE;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.34);
+  --shadow-lg: 0 24px 56px -16px rgba(0, 0, 0, 0.62);
+  --ring: 0 0 0 3px rgba(34, 211, 165, 0.26);
+
+  color-scheme: dark;
+
+  --el-color-primary: #22D3A5;
+  --el-color-primary-light-3: #1D9C81;
+  --el-color-primary-light-5: #196E64;
+  --el-color-primary-light-7: #15474B;
+  --el-color-primary-light-8: #143841;
+  --el-color-primary-light-9: #132D3A;
+  --el-color-primary-dark-2: #4EDCB7;
+  --el-color-success: #22D3A5;
+  --el-color-success-light-3: #1D9C81;
+  --el-color-success-light-5: #196E64;
+  --el-color-success-light-7: #15474B;
+  --el-color-success-light-8: #143841;
+  --el-color-success-light-9: #132D3A;
+  --el-color-success-dark-2: #4EDCB7;
+  --el-color-warning: #F5B547;
+  --el-color-warning-light-3: #B18740;
+  --el-color-warning-light-5: #786039;
+  --el-color-warning-light-7: #484034;
+  --el-color-warning-light-8: #353432;
+  --el-color-warning-light-9: #282A31;
+  --el-color-warning-dark-2: #F7C46C;
+  --el-color-danger: #FF6B85;
+  --el-color-danger-light-3: #B8536B;
+  --el-color-danger-light-5: #7C3F55;
+  --el-color-danger-light-7: #4A2E43;
+  --el-color-danger-light-8: #37283C;
+  --el-color-danger-light-9: #292337;
+  --el-color-danger-dark-2: #FF899D;
+  --el-color-error: #FF6B85;
+  --el-color-error-light-3: #B8536B;
+  --el-color-error-light-5: #7C3F55;
+  --el-color-error-light-7: #4A2E43;
+  --el-color-error-light-8: #37283C;
+  --el-color-error-light-9: #292337;
+  --el-color-error-dark-2: #FF899D;
+  --el-color-info: #8394AE;
+  --el-color-info-light-3: #617088;
+  --el-color-info-light-5: #445168;
+  --el-color-info-light-7: #2C384D;
+  --el-color-info-light-8: #232E42;
+  --el-color-info-light-9: #1C273B;
+  --el-color-info-dark-2: #9CA9BE;
+}
+
+/* Element Plus neutrals follow the surface tokens in both themes */
+:root,
+html.dark {
+  --el-font-family: var(--font-sans);
+  --el-text-color-primary: var(--ink);
+  --el-text-color-regular: var(--ink-2);
+  --el-text-color-secondary: var(--ink-3);
+  --el-text-color-placeholder: var(--ink-3);
+  --el-text-color-disabled: var(--ink-3);
+
+  --el-bg-color: var(--surface);
+  --el-bg-color-page: var(--bg);
+  --el-bg-color-overlay: var(--surface);
+  --el-disabled-bg-color: var(--surface-2);
+  --el-disabled-text-color: var(--ink-3);
+  --el-disabled-border-color: var(--border);
+
+  --el-border-color: var(--border);
+  --el-border-color-light: var(--border);
+  --el-border-color-lighter: var(--border);
+  --el-border-color-extra-light: var(--border);
+  --el-border-color-dark: var(--border-strong);
+  --el-border-color-darker: var(--border-strong);
+
+  --el-fill-color: var(--surface-2);
+  --el-fill-color-light: var(--surface-2);
+  --el-fill-color-lighter: var(--surface-2);
+  --el-fill-color-extra-light: var(--surface-2);
+  --el-fill-color-blank: var(--surface);
+  --el-fill-color-dark: var(--surface-3);
+  --el-fill-color-darker: var(--surface-3);
+
+  --el-mask-color: var(--scrim);
+  --el-mask-color-extra-light: var(--scrim);
+
+  --el-border-radius-base: var(--r-sm);
+  --el-border-radius-small: var(--r-xs);
+  --el-border-radius-round: var(--r-full);
+
+  --el-box-shadow: var(--shadow-md);
+  --el-box-shadow-light: var(--shadow-sm);
+  --el-box-shadow-lighter: var(--shadow-sm);
+  --el-box-shadow-dark: var(--shadow-lg);
+}

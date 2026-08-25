@@ -1,11 +1,16 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete, Edit, Refresh } from '@element-plus/icons-vue'
 import { usersApi } from '../api'
 import { useAuthStore } from '../stores/auth'
-import { formatDate, userRoleLabel, errorMessage } from '../utils/format'
+import { useBreakpoint } from '../composables/useBreakpoint'
+import { formatDate, userRoleLabel, pluralize, errorMessage } from '../utils/format'
+import PageHeader from '../components/PageHeader.vue'
+import StatusTag from '../components/StatusTag.vue'
 
 const auth = useAuthStore()
+const { isMobile } = useBreakpoint()
 
 const users = ref([])
 const loading = ref(false)
@@ -14,6 +19,19 @@ const dialogVisible = ref(false)
 const saving = ref(false)
 const editingId = ref(null)
 const form = reactive({ email: '', role: 'USER', notificationDays: 3, password: '' })
+
+const dialogWidth = computed(() => (isMobile.value ? '94vw' : '440px'))
+
+const subtitle = computed(() => {
+  const total = users.value.length
+  if (!total) return ''
+  const admins = users.value.filter((user) => user.role === 'ADMIN').length
+  return `${total} ${pluralize(total, ['пользователь', 'пользователя', 'пользователей'])} · ${admins} с правами администратора`
+})
+
+function initials(username) {
+  return (username ?? '?').slice(0, 2).toUpperCase()
+}
 
 async function load() {
   loading.value = true
@@ -66,11 +84,11 @@ async function save() {
 
 async function remove(row) {
   try {
-    await ElMessageBox.confirm(`Удалить пользователя «${row.username}» со всеми его подписками?`, 'Подтверждение', {
-      confirmButtonText: 'Удалить',
-      cancelButtonText: 'Отмена',
-      type: 'warning'
-    })
+    await ElMessageBox.confirm(
+      `Удалить пользователя «${row.username}» со всеми его подписками?`,
+      'Подтверждение',
+      { confirmButtonText: 'Удалить', cancelButtonText: 'Отмена', type: 'warning' }
+    )
   } catch {
     return
   }
@@ -87,40 +105,100 @@ onMounted(load)
 </script>
 
 <template>
-  <div>
-    <div class="toolbar">
-      <h2>Пользователи</h2>
-      <el-button @click="load">Обновить</el-button>
-    </div>
+  <div class="page">
+    <PageHeader title="Пользователи" :subtitle="subtitle">
+      <template #actions>
+        <el-button :icon="Refresh" @click="load">Обновить</el-button>
+      </template>
+    </PageHeader>
 
-    <el-table v-loading="loading" :data="users" border stripe>
-      <el-table-column prop="username" label="Имя пользователя" min-width="150" />
-      <el-table-column prop="email" label="Email" min-width="200" />
-      <el-table-column label="Роль" width="150">
-        <template #default="{ row }">
-          <el-tag :type="row.role === 'ADMIN' ? 'danger' : 'primary'">{{ userRoleLabel(row.role) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="notificationDays" label="Уведомлять за (дней)" width="170" />
-      <el-table-column label="Регистрация" width="130">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="Действия" width="170" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">Изменить</el-button>
+    <div v-if="isMobile" v-loading="loading" class="records">
+      <article v-for="row in users" :key="row.id" class="record">
+        <div class="record__head">
+          <div class="person">
+            <span class="person__avatar">{{ initials(row.username) }}</span>
+            <div>
+              <p class="record__title">{{ row.username }}</p>
+              <p class="person__email">{{ row.email }}</p>
+            </div>
+          </div>
+          <StatusTag
+            :tone="row.role === 'ADMIN' ? 'blue' : 'slate'"
+            :label="userRoleLabel(row.role)"
+            :dot="false"
+          />
+        </div>
+        <div class="record__meta">
+          <div>
+            <p class="record__label">Уведомлять за</p>
+            <p class="record__value">{{ row.notificationDays }} дн.</p>
+          </div>
+          <div>
+            <p class="record__label">Регистрация</p>
+            <p class="record__value">{{ formatDate(row.createdAt) }}</p>
+          </div>
+        </div>
+        <div class="record__actions">
+          <el-button :icon="Edit" @click="openEdit(row)">Изменить</el-button>
           <el-button
             v-if="row.id !== auth.user?.id"
-            size="small"
+            :icon="Delete"
             type="danger"
+            plain
             @click="remove(row)"
           >
             Удалить
           </el-button>
+        </div>
+      </article>
+    </div>
+
+    <el-table v-else v-loading="loading" :data="users">
+      <el-table-column label="Пользователь" min-width="230">
+        <template #default="{ row }">
+          <div class="person">
+            <span class="person__avatar">{{ initials(row.username) }}</span>
+            <div>
+              <p class="person__name">{{ row.username }}</p>
+              <p class="person__email">{{ row.email }}</p>
+            </div>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="Роль" width="170">
+        <template #default="{ row }">
+          <StatusTag
+            :tone="row.role === 'ADMIN' ? 'blue' : 'slate'"
+            :label="userRoleLabel(row.role)"
+            :dot="false"
+          />
+        </template>
+      </el-table-column>
+      <el-table-column label="Уведомлять за" width="150" class-name="num-cell">
+        <template #default="{ row }">{{ row.notificationDays }} дн.</template>
+      </el-table-column>
+      <el-table-column label="Регистрация" width="140" class-name="num-cell">
+        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+      </el-table-column>
+      <el-table-column label="Действия" width="120" align="right">
+        <template #default="{ row }">
+          <div class="row-actions">
+            <el-button :icon="Edit" circle text title="Изменить" @click="openEdit(row)" />
+            <el-button
+              v-if="row.id !== auth.user?.id"
+              :icon="Delete"
+              circle
+              text
+              type="danger"
+              title="Удалить"
+              @click="remove(row)"
+            />
+          </div>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" title="Редактирование пользователя" width="440px">
+    <el-dialog v-model="dialogVisible" title="Редактирование пользователя" :width="dialogWidth">
       <el-form label-position="top">
         <el-form-item label="Email">
           <el-input v-model="form.email" type="email" />
@@ -147,16 +225,45 @@ onMounted(load)
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.toolbar h2 {
-  margin: 0;
-}
 .full {
   width: 100%;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.person__avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.person__name {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.person__email {
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.row-actions {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
 }
 </style>

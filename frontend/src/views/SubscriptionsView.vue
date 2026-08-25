@@ -1,8 +1,15 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { CreditCard, Delete, Edit, Plus } from '@element-plus/icons-vue'
 import { subscriptionsApi, paymentsApi, categoriesApi } from '../api'
-import { formatMoney, formatDate, errorMessage } from '../utils/format'
+import { useBreakpoint } from '../composables/useBreakpoint'
+import { formatMoney, formatDate, relativeDate, daysUntil, pluralize, errorMessage } from '../utils/format'
+import PageHeader from '../components/PageHeader.vue'
+import StatusTag from '../components/StatusTag.vue'
+import EmptyState from '../components/EmptyState.vue'
+
+const { isMobile } = useBreakpoint()
 
 const subscriptions = ref([])
 const payments = ref([])
@@ -41,7 +48,25 @@ const rows = computed(() =>
   })
 )
 
+const activeCount = computed(() => rows.value.filter((row) => row.isActive).length)
+
+const subtitle = computed(() => {
+  const total = rows.value.length
+  if (!total) return 'Список пуст'
+  return `${total} ${pluralize(total, ['подписка', 'подписки', 'подписок'])} · ${activeCount.value} активных`
+})
+
 const selectableCategories = computed(() => categories.value.filter((c) => c.type !== 'LEGACY'))
+const dialogWidth = computed(() => (isMobile.value ? '94vw' : '480px'))
+
+function billingTone(row) {
+  if (!row.isActive) return 'slate'
+  const days = daysUntil(row.nextBillingDate)
+  if (days === null) return 'slate'
+  if (days <= 0) return 'rose'
+  if (days <= 3) return 'amber'
+  return 'slate'
+}
 
 async function load() {
   loading.value = true
@@ -149,35 +174,107 @@ onMounted(load)
 </script>
 
 <template>
-  <div>
-    <div class="toolbar">
-      <h2>Подписки</h2>
-      <el-button type="primary" @click="openCreate">Добавить подписку</el-button>
+  <div class="page">
+    <PageHeader title="Подписки" :subtitle="subtitle">
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="openCreate">Добавить подписку</el-button>
+      </template>
+    </PageHeader>
+
+    <EmptyState
+      v-if="!loading && !rows.length"
+      title="Пока нет подписок"
+      text="Добавьте первую подписку — и увидите даты списаний, расходы и напоминания."
+    >
+      <template #icon><el-icon><CreditCard /></el-icon></template>
+      <template #action>
+        <el-button type="primary" :icon="Plus" @click="openCreate">Добавить подписку</el-button>
+      </template>
+    </EmptyState>
+
+    <div v-else-if="isMobile" v-loading="loading" class="records">
+      <article v-for="row in rows" :key="row.id" class="record">
+        <div class="record__head">
+          <span class="record__title">{{ row.name }}</span>
+          <StatusTag
+            :tone="row.isActive ? 'mint' : 'slate'"
+            :label="row.isActive ? 'Активна' : 'Неактивна'"
+          />
+        </div>
+        <div class="record__meta">
+          <div>
+            <p class="record__label">Стоимость</p>
+            <p class="record__value">{{ formatMoney(row.cost, row.currency) }}</p>
+          </div>
+          <div>
+            <p class="record__label">Категория</p>
+            <p class="record__value">{{ row.categoryName }}</p>
+          </div>
+          <div>
+            <p class="record__label">Период</p>
+            <p class="record__value">
+              {{ row.billingPeriodDays ? `${row.billingPeriodDays} дн.` : '—' }}
+            </p>
+          </div>
+          <div>
+            <p class="record__label">Списание</p>
+            <p class="record__value">
+              {{ formatDate(row.nextBillingDate) }}
+              <span class="record__note">{{ relativeDate(row.nextBillingDate) }}</span>
+            </p>
+          </div>
+        </div>
+        <div class="record__actions">
+          <el-button :icon="Edit" @click="openEdit(row)">Изменить</el-button>
+          <el-button :icon="Delete" type="danger" plain @click="remove(row)">Удалить</el-button>
+        </div>
+      </article>
     </div>
 
-    <el-table v-loading="loading" :data="rows" border stripe>
-      <el-table-column prop="name" label="Название" min-width="160" />
-      <el-table-column prop="categoryName" label="Категория" min-width="140" />
-      <el-table-column label="Стоимость" width="140">
-        <template #default="{ row }">{{ formatMoney(row.cost, row.currency) }}</template>
-      </el-table-column>
-      <el-table-column label="Период" width="110">
-        <template #default="{ row }">{{ row.billingPeriodDays ? `${row.billingPeriodDays} дн.` : '—' }}</template>
-      </el-table-column>
-      <el-table-column label="Следующее списание" width="180">
-        <template #default="{ row }">{{ formatDate(row.nextBillingDate) }}</template>
-      </el-table-column>
-      <el-table-column label="Статус" width="110">
+    <el-table v-else v-loading="loading" :data="rows">
+      <el-table-column prop="name" label="Название" min-width="180">
         <template #default="{ row }">
-          <el-tag :type="row.isActive ? 'success' : 'info'">
-            {{ row.isActive ? 'Активна' : 'Неактивна' }}
-          </el-tag>
+          <span class="cell-strong">{{ row.name }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="Действия" width="160" fixed="right">
+      <el-table-column prop="categoryName" label="Категория" min-width="150" />
+      <el-table-column label="Стоимость" width="140" class-name="num-cell">
+        <template #default="{ row }">{{ formatMoney(row.cost, row.currency) }}</template>
+      </el-table-column>
+      <el-table-column label="Период" width="110" class-name="num-cell">
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">Изменить</el-button>
-          <el-button size="small" type="danger" @click="remove(row)">Удалить</el-button>
+          {{ row.billingPeriodDays ? `${row.billingPeriodDays} дн.` : '—' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="Следующее списание" min-width="190">
+        <template #default="{ row }">
+          <span class="num">{{ formatDate(row.nextBillingDate) }}</span>
+          <span class="cell-note" :class="`cell-note--${billingTone(row)}`">
+            {{ relativeDate(row.nextBillingDate) }}
+          </span>
+        </template>
+      </el-table-column>
+      <el-table-column label="Статус" width="140">
+        <template #default="{ row }">
+          <StatusTag
+            :tone="row.isActive ? 'mint' : 'slate'"
+            :label="row.isActive ? 'Активна' : 'Неактивна'"
+          />
+        </template>
+      </el-table-column>
+      <el-table-column label="Действия" width="120" align="right">
+        <template #default="{ row }">
+          <div class="row-actions">
+            <el-button :icon="Edit" circle text title="Изменить" @click="openEdit(row)" />
+            <el-button
+              :icon="Delete"
+              circle
+              text
+              type="danger"
+              title="Удалить"
+              @click="remove(row)"
+            />
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -185,39 +282,43 @@ onMounted(load)
     <el-dialog
       v-model="dialogVisible"
       :title="editingId === null ? 'Новая подписка' : 'Редактирование подписки'"
-      width="480px"
+      :width="dialogWidth"
     >
       <el-form label-position="top">
         <el-form-item label="Название">
-          <el-input v-model="form.name" />
+          <el-input v-model="form.name" placeholder="Например, Netflix" />
         </el-form-item>
         <el-form-item label="Категория">
           <el-select v-model="form.categoryId" placeholder="Выберите категорию" class="full">
             <el-option v-for="c in selectableCategories" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Стоимость">
-          <el-input-number v-model="form.cost" :min="0.01" :precision="2" :step="10" class="full" />
-        </el-form-item>
-        <el-form-item label="Валюта">
-          <el-select v-model="form.currency" class="full">
-            <el-option label="₽ RUB" value="RUB" />
-            <el-option label="$ USD" value="USD" />
-            <el-option label="€ EUR" value="EUR" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Период оплаты (дней)">
-          <el-input-number v-model="form.billingPeriodDays" :min="1" class="full" />
-        </el-form-item>
-        <el-form-item label="Дата следующего списания">
-          <el-date-picker
-            v-model="form.nextBillingDate"
-            type="date"
-            value-format="YYYY-MM-DD"
-            placeholder="Выберите дату"
-            class="full"
-          />
-        </el-form-item>
+        <div class="form-row">
+          <el-form-item label="Стоимость">
+            <el-input-number v-model="form.cost" :min="0.01" :precision="2" :step="10" class="full" />
+          </el-form-item>
+          <el-form-item label="Валюта">
+            <el-select v-model="form.currency" class="full">
+              <el-option label="₽ RUB" value="RUB" />
+              <el-option label="$ USD" value="USD" />
+              <el-option label="€ EUR" value="EUR" />
+            </el-select>
+          </el-form-item>
+        </div>
+        <div class="form-row">
+          <el-form-item label="Период оплаты (дней)">
+            <el-input-number v-model="form.billingPeriodDays" :min="1" class="full" />
+          </el-form-item>
+          <el-form-item label="Дата следующего списания">
+            <el-date-picker
+              v-model="form.nextBillingDate"
+              type="date"
+              value-format="YYYY-MM-DD"
+              placeholder="Выберите дату"
+              class="full"
+            />
+          </el-form-item>
+        </div>
         <el-form-item label="Активна">
           <el-switch v-model="form.isActive" />
         </el-form-item>
@@ -231,16 +332,50 @@ onMounted(load)
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.toolbar h2 {
-  margin: 0;
-}
 .full {
   width: 100%;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+}
+
+.cell-strong {
+  font-weight: 600;
+}
+
+.cell-note {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.cell-note--rose {
+  color: var(--tone-rose);
+}
+
+.cell-note--amber {
+  color: var(--tone-amber);
+}
+
+.record__note {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.row-actions {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 767px) {
+  .form-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
 }
 </style>

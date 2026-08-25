@@ -1,30 +1,62 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
+const APP_NAME = 'Subscription Monitor'
+
 const routes = [
   {
     path: '/login',
     name: 'login',
     component: () => import('../views/LoginView.vue'),
-    meta: { public: true }
+    meta: { public: true, title: 'Вход' }
   },
   {
     path: '/register',
     name: 'register',
     component: () => import('../views/RegisterView.vue'),
-    meta: { public: true }
+    meta: { public: true, title: 'Регистрация' }
   },
   {
     path: '/',
     component: () => import('../components/AppLayout.vue'),
     children: [
       { path: '', redirect: { name: 'subscriptions' } },
-      { path: 'subscriptions', name: 'subscriptions', component: () => import('../views/SubscriptionsView.vue') },
-      { path: 'categories', name: 'categories', component: () => import('../views/CategoriesView.vue') },
-      { path: 'notifications', name: 'notifications', component: () => import('../views/NotificationsView.vue') },
-      { path: 'statistics', name: 'statistics', component: () => import('../views/StatisticsView.vue') },
-      { path: 'profile', name: 'profile', component: () => import('../views/ProfileView.vue') },
-      { path: 'users', name: 'users', component: () => import('../views/UsersView.vue'), meta: { adminOnly: true } }
+      {
+        path: 'subscriptions',
+        name: 'subscriptions',
+        component: () => import('../views/SubscriptionsView.vue'),
+        meta: { title: 'Подписки' }
+      },
+      {
+        path: 'categories',
+        name: 'categories',
+        component: () => import('../views/CategoriesView.vue'),
+        meta: { title: 'Категории' }
+      },
+      {
+        path: 'notifications',
+        name: 'notifications',
+        component: () => import('../views/NotificationsView.vue'),
+        meta: { title: 'Уведомления' }
+      },
+      {
+        path: 'statistics',
+        name: 'statistics',
+        component: () => import('../views/StatisticsView.vue'),
+        meta: { title: 'Статистика' }
+      },
+      {
+        path: 'profile',
+        name: 'profile',
+        component: () => import('../views/ProfileView.vue'),
+        meta: { title: 'Профиль' }
+      },
+      {
+        path: 'users',
+        name: 'users',
+        component: () => import('../views/UsersView.vue'),
+        meta: { adminOnly: true, title: 'Пользователи' }
+      }
     ]
   }
 ]
@@ -49,6 +81,10 @@ router.beforeEach(async (to) => {
     return { name: 'subscriptions' }
   }
   return true
+})
+
+router.afterEach((to) => {
+  document.title = to.meta.title ? `${to.meta.title} · ${APP_NAME}` : APP_NAME
 })
 
 export default router

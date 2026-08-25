@@ -9,4 +9,7 @@ npm test           # Vitest
 npm run build      # прод-сборка в dist/
 ```
 
+По умолчанию dev-сервер проксирует `/api` на `localhost:8080`. Другой бэкенд задаётся переменной
+`VITE_API_TARGET`, например `VITE_API_TARGET=https://subscription-monitor.com npm run dev`.
+
 В контейнере статика раздаётся Caddy (см. `Dockerfile` и `Caddyfile`), он же проксирует `/api` на бэкенд.

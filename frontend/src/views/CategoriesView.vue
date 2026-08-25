@@ -1,11 +1,17 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete, Edit, Lock, Plus, PriceTag } from '@element-plus/icons-vue'
 import { categoriesApi } from '../api'
 import { useAuthStore } from '../stores/auth'
-import { categoryTypeLabel, formatDate, errorMessage } from '../utils/format'
+import { useBreakpoint } from '../composables/useBreakpoint'
+import { categoryTypeLabel, formatDate, pluralize, errorMessage } from '../utils/format'
+import PageHeader from '../components/PageHeader.vue'
+import StatusTag from '../components/StatusTag.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const auth = useAuthStore()
+const { isMobile } = useBreakpoint()
 
 const categories = ref([])
 const loading = ref(false)
@@ -15,7 +21,16 @@ const saving = ref(false)
 const editingId = ref(null)
 const form = reactive({ name: '' })
 
-const TYPE_TAG = { SYSTEM: 'primary', CUSTOM: 'success', LEGACY: 'info' }
+const TYPE_TONE = { SYSTEM: 'blue', CUSTOM: 'mint', LEGACY: 'slate' }
+
+const dialogWidth = computed(() => (isMobile.value ? '94vw' : '420px'))
+
+const subtitle = computed(() => {
+  const total = categories.value.length
+  if (!total) return 'Список пуст'
+  const own = categories.value.filter((c) => c.type === 'CUSTOM').length
+  return `${total} ${pluralize(total, ['категория', 'категории', 'категорий'])} · ${own} своих`
+})
 
 function isEditable(row) {
   return row.type === 'CUSTOM' && (auth.isAdmin || row.createdByUserId === auth.user?.id)
@@ -91,28 +106,79 @@ onMounted(load)
 </script>
 
 <template>
-  <div>
-    <div class="toolbar">
-      <h2>Категории</h2>
-      <el-button type="primary" @click="openCreate">Добавить категорию</el-button>
+  <div class="page">
+    <PageHeader title="Категории" :subtitle="subtitle">
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="openCreate">Добавить категорию</el-button>
+      </template>
+    </PageHeader>
+
+    <EmptyState
+      v-if="!loading && !categories.length"
+      title="Категорий пока нет"
+      text="Категории помогают группировать подписки и видеть расходы по направлениям."
+    >
+      <template #icon><el-icon><PriceTag /></el-icon></template>
+      <template #action>
+        <el-button type="primary" :icon="Plus" @click="openCreate">Добавить категорию</el-button>
+      </template>
+    </EmptyState>
+
+    <div v-else-if="isMobile" v-loading="loading" class="records">
+      <article v-for="row in categories" :key="row.id" class="record">
+        <div class="record__head">
+          <span class="record__title">{{ row.name }}</span>
+          <StatusTag
+            :tone="TYPE_TONE[row.type] ?? 'slate'"
+            :label="categoryTypeLabel(row.type)"
+            :dot="false"
+          />
+        </div>
+        <div class="record__meta">
+          <div>
+            <p class="record__label">Создана</p>
+            <p class="record__value">{{ formatDate(row.createdAt) }}</p>
+          </div>
+        </div>
+        <div v-if="isEditable(row)" class="record__actions">
+          <el-button :icon="Edit" @click="openEdit(row)">Изменить</el-button>
+          <el-button :icon="Delete" type="danger" plain @click="remove(row)">Удалить</el-button>
+        </div>
+      </article>
     </div>
 
-    <el-table v-loading="loading" :data="categories" border stripe>
-      <el-table-column prop="name" label="Название" min-width="200" />
-      <el-table-column label="Тип" width="180">
+    <el-table v-else v-loading="loading" :data="categories">
+      <el-table-column prop="name" label="Название" min-width="220">
         <template #default="{ row }">
-          <el-tag :type="TYPE_TAG[row.type] ?? 'info'">{{ categoryTypeLabel(row.type) }}</el-tag>
+          <span class="cell-strong">{{ row.name }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="Создана" width="140">
+      <el-table-column label="Тип" width="200">
+        <template #default="{ row }">
+          <StatusTag
+            :tone="TYPE_TONE[row.type] ?? 'slate'"
+            :label="categoryTypeLabel(row.type)"
+            :dot="false"
+          />
+        </template>
+      </el-table-column>
+      <el-table-column label="Создана" width="150" class-name="num-cell">
         <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="Действия" width="160" fixed="right">
+      <el-table-column label="Действия" width="120" align="right">
         <template #default="{ row }">
-          <template v-if="isEditable(row)">
-            <el-button size="small" @click="openEdit(row)">Изменить</el-button>
-            <el-button size="small" type="danger" @click="remove(row)">Удалить</el-button>
-          </template>
+          <div v-if="isEditable(row)" class="row-actions">
+            <el-button :icon="Edit" circle text title="Изменить" @click="openEdit(row)" />
+            <el-button
+              :icon="Delete"
+              circle
+              text
+              type="danger"
+              title="Удалить"
+              @click="remove(row)"
+            />
+          </div>
+          <el-icon v-else class="row-lock" title="Системная категория"><Lock /></el-icon>
         </template>
       </el-table-column>
     </el-table>
@@ -120,11 +186,11 @@ onMounted(load)
     <el-dialog
       v-model="dialogVisible"
       :title="editingId === null ? 'Новая категория' : 'Редактирование категории'"
-      width="420px"
+      :width="dialogWidth"
     >
       <el-form label-position="top" @submit.prevent="save">
         <el-form-item label="Название">
-          <el-input v-model="form.name" />
+          <el-input v-model="form.name" placeholder="Например, Музыка" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -136,13 +202,19 @@ onMounted(load)
 </template>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+.cell-strong {
+  font-weight: 600;
 }
-.toolbar h2 {
-  margin: 0;
+
+.row-actions {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+
+.row-lock {
+  color: var(--ink-3);
+  float: right;
+  margin-top: 6px;
 }
 </style>

@@ -2,9 +2,33 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Subscription Monitor</title>
+    <meta name="description" content="Учёт подписок: даты списаний, расходы и уведомления в одном месте." />
+    <meta name="theme-color" content="#0B1220" />
+    <meta name="color-scheme" content="dark light" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="apple-mobile-web-app-title" content="Subscriptions" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Theme bootstrap: applied before first paint to avoid a flash -->
+    <script>
+      (function () {
+        var dark = true
+        try {
+          var stored = localStorage.getItem('sm-theme')
+          if (stored) dark = stored === 'dark'
+        } catch (e) {}
+        var color = dark ? '#0B1220' : '#F4F7FB'
+        document.documentElement.classList.toggle('dark', dark)
+        document.documentElement.style.backgroundColor = color
+        var meta = document.querySelector('meta[name="theme-color"]')
+        if (meta) meta.setAttribute('content', color)
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>

@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import { authApi } from '../api'
 import { useAuthStore } from '../stores/auth'
 import { errorMessage } from '../utils/format'
+import AuthShell from '../components/AuthShell.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -40,54 +41,76 @@ async function handleRegister() {
 </script>
 
 <template>
-  <div class="auth-page">
-    <el-card class="auth-card">
-      <h2>Регистрация</h2>
-      <el-form label-position="top" @submit.prevent="handleRegister">
-        <el-form-item label="Имя пользователя">
-          <el-input v-model="form.username" autocomplete="username" />
-        </el-form-item>
-        <el-form-item label="Email">
-          <el-input v-model="form.email" type="email" autocomplete="email" />
-        </el-form-item>
-        <el-form-item label="Пароль">
-          <el-input v-model="form.password" type="password" show-password autocomplete="new-password" />
-        </el-form-item>
-        <el-form-item label="Повторите пароль">
-          <el-input v-model="form.passwordRepeat" type="password" show-password autocomplete="new-password" />
-        </el-form-item>
-        <el-button type="primary" native-type="submit" :loading="loading" class="submit">
-          Зарегистрироваться
-        </el-button>
-      </el-form>
-      <div class="switch">
-        Уже есть аккаунт?
-        <router-link :to="{ name: 'login' }">Войти</router-link>
-      </div>
-    </el-card>
-  </div>
+  <AuthShell>
+    <h2 class="title">Регистрация</h2>
+    <p class="subtitle">Создайте аккаунт — это займёт меньше минуты</p>
+
+    <el-form label-position="top" @submit.prevent="handleRegister">
+      <el-form-item label="Имя пользователя">
+        <el-input v-model="form.username" size="large" autocomplete="username" />
+      </el-form-item>
+      <el-form-item label="Email">
+        <el-input v-model="form.email" type="email" size="large" autocomplete="email" />
+      </el-form-item>
+      <el-form-item label="Пароль">
+        <el-input
+          v-model="form.password"
+          type="password"
+          size="large"
+          show-password
+          autocomplete="new-password"
+        />
+      </el-form-item>
+      <el-form-item label="Повторите пароль">
+        <el-input
+          v-model="form.passwordRepeat"
+          type="password"
+          size="large"
+          show-password
+          autocomplete="new-password"
+        />
+      </el-form-item>
+      <el-button
+        type="primary"
+        size="large"
+        native-type="submit"
+        :loading="loading"
+        class="submit"
+      >
+        Зарегистрироваться
+      </el-button>
+    </el-form>
+
+    <p class="switch">
+      Уже есть аккаунт?
+      <router-link :to="{ name: 'login' }">Войти</router-link>
+    </p>
+  </AuthShell>
 </template>
 
 <style scoped>
-.auth-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.auth-card {
-  width: 360px;
-}
-.auth-card h2 {
-  margin: 0 0 20px;
+.title {
+  font-size: 22px;
+  font-weight: 650;
   text-align: center;
 }
+
+.subtitle {
+  margin: 8px 0 24px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-3);
+}
+
 .submit {
   width: 100%;
+  margin-top: 4px;
 }
+
 .switch {
-  margin-top: 16px;
+  margin-top: 20px;
   text-align: center;
-  color: #606266;
+  font-size: 14px;
+  color: var(--ink-3);
 }
 </style>
