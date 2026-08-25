@@ -16,6 +16,13 @@ https://{$DOMAIN} {
 
 	handle {
 		root * /srv
+
+		# Хешированные бандлы не меняются, остальное перепроверяется на каждый запрос
+		@immutable path /assets/*
+		@revalidate not path /assets/*
+		header @immutable Cache-Control "public, max-age=31536000, immutable"
+		header @revalidate Cache-Control "no-cache"
+
 		try_files {path} /index.html
 		file_server
 	}
