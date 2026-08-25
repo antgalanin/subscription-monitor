@@ -77,6 +77,16 @@ describe('auth store', () => {
     expect(store.user).toBeNull()
   })
 
+  it('clearSession сбрасывает пользователя, но помечает состояние загруженным', async () => {
+    authApi.me.mockResolvedValue({ data: testUser })
+    const store = useAuthStore()
+    await store.fetchUser()
+    store.clearSession()
+    expect(store.user).toBeNull()
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.loaded).toBe(true)
+  })
+
   it('isAdmin отличает администратора от пользователя', async () => {
     authApi.me.mockResolvedValue({ data: adminUser })
     const store = useAuthStore()

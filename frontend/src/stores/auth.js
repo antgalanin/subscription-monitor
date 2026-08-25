@@ -26,6 +26,10 @@ export const useAuthStore = defineStore('auth', {
       this.user = data
       this.loaded = true
     },
+    clearSession() {
+      this.user = null
+      this.loaded = true
+    },
     async logout() {
       try {
         await authApi.logout()

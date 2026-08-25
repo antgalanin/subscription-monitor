@@ -21,41 +21,22 @@ public class CategorySecurityService {
     private final UserRepository userRepository;
 
     public boolean isOwner(UUID categoryId) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        User currentUser = getCurrentUser();
+        Category category = findCategory(categoryId);
+        return currentUser != null && category != null && isOwnedBy(category, currentUser);
+    }
 
-        if (auth == null || !auth.isAuthenticated()) {
+    public boolean canRead(UUID categoryId) {
+        User currentUser = getCurrentUser();
+        Category category = findCategory(categoryId);
+        if (currentUser == null || category == null) {
             return false;
         }
-
-        Object principal = auth.getPrincipal();
-        if (!(principal instanceof UserDetails)) {
-            return false;
-        }
-
-        UserDetails userDetails = (UserDetails) principal;
-        User currentUser = userRepository.findByUsername(userDetails.getUsername())
-                .orElse(null);
-
-        if (currentUser == null) {
-            return false;
-        }
-
-        Category category = categoryRepository.findById(categoryId).orElse(null);
-        if (category == null) {
-            return false;
-        }
-
-        if (category.getType() == CategoryType.SYSTEM) {
-            return true;
-        }
-
-        return category.getCreatedByUserId() != null &&
-                category.getCreatedByUserId().equals(currentUser.getId());
+        return category.getType() == CategoryType.SYSTEM || isOwnedBy(category, currentUser);
     }
 
     public User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
         if (auth == null || !auth.isAuthenticated()) {
             return null;
         }
@@ -67,5 +48,18 @@ public class CategorySecurityService {
 
         UserDetails userDetails = (UserDetails) principal;
         return userRepository.findByUsername(userDetails.getUsername()).orElse(null);
+    }
+
+    private Category findCategory(UUID categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+        return categoryRepository.findById(categoryId).orElse(null);
+    }
+
+    private boolean isOwnedBy(Category category, User user) {
+        return category.getType() != CategoryType.SYSTEM
+                && category.getCreatedByUserId() != null
+                && category.getCreatedByUserId().equals(user.getId());
     }
 }

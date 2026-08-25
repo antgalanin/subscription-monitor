@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Component
@@ -47,7 +48,7 @@ public class PaymentProcessor {
     public void processOverduePayments() {
         LocalDate today = LocalDate.now();
 
-        List<Subscription> activeSubscriptions = subscriptionRepository.findByIsActiveTrue();
+        List<Subscription> activeSubscriptions = subscriptionRepository.findActiveWithPayment();
 
         int processedCount = 0;
         int notificationsCreated = 0;
@@ -67,18 +68,20 @@ public class PaymentProcessor {
 
                 long periodsToAdvance = (daysPassed / billingPeriod) + 1;
 
+                LocalDate billedDate = nextBillingDate;
                 for (int i = 0; i < periodsToAdvance; i++) {
-                    createPaymentSuccessfulNotification(subscription, payment);
-                    notificationsCreated++;
+                    if (createPaymentSuccessfulNotification(subscription, payment, billedDate)) {
+                        notificationsCreated++;
+                    }
+                    billedDate = billedDate.plusDays(billingPeriod);
                 }
 
-                LocalDate newNextBillingDate = nextBillingDate.plusDays(billingPeriod * periodsToAdvance);
-                payment.setNextBillingDate(newNextBillingDate);
+                payment.setNextBillingDate(billedDate);
                 paymentRepository.save(payment);
 
                 processedCount++;
                 log.debug("Updated payment {} for subscription {} - advanced {} periods to {}",
-                        payment.getId(), subscription.getName(), periodsToAdvance, newNextBillingDate);
+                        payment.getId(), subscription.getName(), periodsToAdvance, billedDate);
             }
         }
 
@@ -87,9 +90,8 @@ public class PaymentProcessor {
         }
     }
 
-    private void createPaymentSuccessfulNotification(Subscription subscription, Payment payment) {
+    private boolean createPaymentSuccessfulNotification(Subscription subscription, Payment payment, LocalDate billingDate) {
         try {
-            LocalDate billingDate = payment.getNextBillingDate();
             java.time.LocalDateTime startOfDay = billingDate.atStartOfDay();
             java.time.LocalDateTime endOfDay = billingDate.atTime(23, 59, 59);
 
@@ -102,7 +104,7 @@ public class PaymentProcessor {
                     );
 
             if (existingNotification != null) {
-                return;
+                return false;
             }
 
             Notification notification = new Notification();
@@ -111,6 +113,7 @@ public class PaymentProcessor {
             notification.setSubscriptionId(subscription.getId());
             notification.setType(NotificationType.PAYMENT_SUCCESSFUL);
             notification.setMessage(String.format(
+                    Locale.ROOT,
                     "Списание по подписке '%s' выполнено успешно. Сумма: %.2f %s",
                     subscription.getName(),
                     payment.getCost(),
@@ -122,8 +125,10 @@ public class PaymentProcessor {
             notificationRepository.save(notification);
             log.debug("Created PAYMENT_SUCCESSFUL notification for subscription {} on date {}",
                     subscription.getName(), billingDate);
+            return true;
         } catch (Exception e) {
             log.error("Error creating payment notification: {}", e.getMessage(), e);
+            return false;
         }
     }
 }

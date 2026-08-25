@@ -3,10 +3,10 @@ import { usersApi } from '../api'
 import { useAuthStore } from '../stores/auth'
 
 const owners = ref([])
-const loaded = ref(false)
+const cachedForUserId = ref(null)
 
 export function invalidateOwners() {
-  loaded.value = false
+  cachedForUserId.value = null
 }
 
 export function useOwners() {
@@ -15,13 +15,14 @@ export function useOwners() {
   const byId = computed(() => new Map(owners.value.map((user) => [user.id, user.username])))
 
   async function loadOwners() {
-    if (!auth.isAdmin || loaded.value) return
+    if (!auth.isAdmin || cachedForUserId.value === auth.user?.id) return
     try {
       const { data } = await usersApi.list()
       owners.value = data
-      loaded.value = true
+      cachedForUserId.value = auth.user?.id
     } catch {
       owners.value = []
+      cachedForUserId.value = null
     }
   }
 

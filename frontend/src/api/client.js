@@ -1,5 +1,6 @@
 import axios from 'axios'
 import router from '../router'
+import { useAuthStore } from '../stores/auth'
 
 const client = axios.create({
   baseURL: '/api',
@@ -12,8 +13,11 @@ client.interceptors.response.use(
   (error) => {
     const status = error.response?.status
     const url = error.config?.url
-    if (status === 401 && url !== '/auth/me' && router.currentRoute.value.name !== 'login') {
-      router.push({ name: 'login' })
+    if (status === 401 && url !== '/auth/me') {
+      useAuthStore().clearSession()
+      if (router.currentRoute.value.name !== 'login') {
+        router.push({ name: 'login' })
+      }
     }
     return Promise.reject(error)
   }

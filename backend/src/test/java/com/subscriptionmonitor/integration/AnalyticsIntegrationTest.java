@@ -40,6 +40,10 @@ class AnalyticsIntegrationTest extends AbstractIntegrationTest {
         return builder.with(user(username).roles("USER")).with(csrf());
     }
 
+    private MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder builder, String username) {
+        return builder.with(user(username).roles("ADMIN")).with(csrf());
+    }
+
     private void createSubscription(String username, String name, String cost, String currency,
                                     int periodDays, LocalDate nextBilling) throws Exception {
         UUID categoryId = categoryRepository.findAll().stream()
@@ -107,5 +111,40 @@ class AnalyticsIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].activeSubscriptions").value(1))
                 .andExpect(jsonPath("$[0].totalCostRub").value(500.00));
+    }
+
+    @Test
+    @DisplayName("Администратор читает статистику другого пользователя")
+    void testAdminReadsForeignStatistics() throws Exception {
+        User owner = userRepository.save(new User("stats_owner", "stats_owner@example.com", "encoded"));
+        userRepository.save(new User("stats_admin", "stats_admin@example.com", "encoded"));
+        createSubscription("stats_owner", "Admin visible", "500.00", "RUB", 30, LocalDate.now().plusDays(7));
+
+        mockMvc.perform(asAdmin(get("/api/analytics/users/" + owner.getId() + "/statistics"), "stats_admin"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("stats_owner"))
+                .andExpect(jsonPath("$.activeSubscriptions").value(1));
+    }
+
+    @Test
+    @DisplayName("Администратор видит предстоящие платежи другого пользователя")
+    void testAdminReadsForeignUpcomingPayments() throws Exception {
+        User owner = userRepository.save(new User("upcoming_owner", "upcoming_owner@example.com", "encoded"));
+        userRepository.save(new User("upcoming_admin", "upcoming_admin@example.com", "encoded"));
+        createSubscription("upcoming_owner", "Admin visible payment", "700.00", "RUB", 30, LocalDate.now().plusDays(3));
+
+        mockMvc.perform(asAdmin(get("/api/analytics/users/" + owner.getId() + "/upcoming-payments"), "upcoming_admin"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].subscriptionName").value("Admin visible payment"));
+    }
+
+    @Test
+    @DisplayName("Обычный пользователь не видит чужую статистику")
+    void testUserCannotReadForeignStatistics() throws Exception {
+        User owner = userRepository.save(new User("stats_victim", "stats_victim@example.com", "encoded"));
+        userRepository.save(new User("stats_curious", "stats_curious@example.com", "encoded"));
+
+        mockMvc.perform(asUser(get("/api/analytics/users/" + owner.getId() + "/statistics"), "stats_curious"))
+                .andExpect(status().isForbidden());
     }
 }

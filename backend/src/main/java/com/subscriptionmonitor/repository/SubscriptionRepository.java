@@ -18,6 +18,9 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
 
     List<Subscription> findByIsActiveTrue();
 
+    @Query("SELECT s FROM Subscription s LEFT JOIN FETCH s.payment WHERE s.isActive = true")
+    List<Subscription> findActiveWithPayment();
+
     @Query("SELECT s FROM Subscription s WHERE s.userId = :userId AND s.isActive = true")
     List<Subscription> findActiveSubscriptionsByUserId(@Param("userId") UUID userId);
 

@@ -100,7 +100,7 @@ public class CategoryController {
                 examples = @ExampleObject(value = "{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"An unexpected error occurred\",\"code\":\"INTERNAL_ERROR\",\"timestamp\":\"2025-10-19T18:30:00\",\"path\":\"/api/categories/{id}\"}")))
     })
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or @categorySecurityService.isOwner(#id)")
+    @PreAuthorize("hasRole('ADMIN') or @categorySecurityService.canRead(#id)")
     public ResponseEntity<CategoryResponse> getById(@Parameter(description = "Category ID") @PathVariable UUID id) throws CategoryNotFoundException {
         Category category = categoryService.findById(id);
         return ResponseEntity.ok(toResponse(category));
